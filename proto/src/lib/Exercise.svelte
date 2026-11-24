@@ -1,11 +1,13 @@
 <script lang="ts">
   import {
-    ANSWER_DEGREES, CADENCE, DEGREE_COLORS,
-    chordNotes, chordName, randomKey, randomProgression, type Degree,
+    ANSWER_DEGREES, CADENCE, DEGREE_COLORS, DEGREE_FUNCTION, DEGREE_ROLE,
+    chordNotes, chordName, randomKey, randomProgression, voiceProgression, type Degree,
   } from './theory';
   import { loadPiano, unlock, playSequence, playChord, stop } from './audio';
   import Wheel from './Wheel.svelte';
   import Timeline from './Timeline.svelte';
+  import BassLine from './BassLine.svelte';
+  import Keyboard from './Keyboard.svelte';
 
   type Phase = 'idle' | 'loading' | 'playing' | 'answering' | 'revealed';
 
@@ -15,6 +17,9 @@
   let phase = $state<Phase>('idle');
   let key = $state('C');
   let progression = $state<Degree[]>([]);
+  let voicings = $state<string[][]>([]);
+  let shown = $state<string[]>([]);       // voicing affiché sur le clavier
+  let shownDegree = $state<Degree | null>(null);
   let bpm = $state(80);
   let answer = $state<Degree[]>([]);
   let replays = $state(0);
@@ -45,6 +50,9 @@
     if (id !== questionId) return;
     key = randomKey();
     progression = randomProgression();
+    voicings = voiceProgression(key, progression);
+    shown = [];
+    shownDegree = null;
     bpm = 70 + Math.floor(Math.random() * 31);
     answer = [];
     replays = 0;
@@ -65,9 +73,9 @@
 
   async function playProgression() {
     await playSequence(
-      progression.map((d) => chordNotes(key, d)),
+      voicings,
       bpm,
-      (i) => { currentIndex = i; },
+      (i) => { currentIndex = i; if (phase === 'revealed') { shown = voicings[i]; shownDegree = progression[i]; } },
     );
     currentIndex = -1;
   }
@@ -107,11 +115,33 @@
 
   function textColor(d: Degree) { return d === 'iii' ? '#111' : '#fff'; }
 
-  /** Réécoute d'un seul accord (après révélation), pour l'ancrer. */
-  async function hear(d: Degree) {
+  /** Réécoute d'un accord de la progression (voicing réel), après révélation. */
+  async function hearIndex(i: number) {
     if (phase !== 'revealed') return;
     await unlock();
-    playChord(chordNotes(key, d));
+    shown = voicings[i];
+    shownDegree = progression[i];
+    playChord(shown);
+  }
+
+  /** Réécoute d'un degré quelconque (roue), voicing de référence. */
+  async function hear(d: Degree) {
+    if (phase !== 'revealed') return;
+    const i = progression.indexOf(d);
+    if (i >= 0) return hearIndex(i);
+    await unlock();
+    shown = chordNotes(key, d);
+    shownDegree = d;
+    playChord(shown);
+  }
+
+  /** Basse seule. */
+  async function hearBass(i: number) {
+    if (phase !== 'revealed') return;
+    await unlock();
+    shown = [voicings[i][0]];
+    shownDegree = progression[i];
+    playChord([voicings[i][0]], '1n');
   }
 </script>
 
@@ -123,9 +153,14 @@
 
   <section class="viz">
     {#if phase === 'revealed'}
-      <p class="hint small">Tape un accord (case, bloc ou roue) pour le réentendre.</p>
+      <p class="hint small">Tape un accord (case, bloc, roue, basse) pour le réentendre.</p>
       <Wheel {progression} {currentIndex} onTap={hear} />
-      <Timeline {progression} {currentIndex} label="La progression, en {key} majeur" onTap={(i) => hear(progression[i])} />
+      <Timeline {progression} {currentIndex} label="La progression, en {key} majeur" onTap={hearIndex} />
+      <BassLine {voicings} {progression} {key} {currentIndex} onTap={hearBass} />
+      <Keyboard notes={shown} bassColor={shownDegree ? DEGREE_COLORS[shownDegree] : '#e4383a'} />
+      {#if shownDegree}
+        <p class="hint small"><strong>{shownDegree} · {chordName(key, shownDegree)}</strong> · {DEGREE_FUNCTION[shownDegree]} · {DEGREE_ROLE[shownDegree]}</p>
+      {/if}
     {:else if phase === 'playing' && stage === 'cadence'}
       <p class="hint"><strong>1. Ancrage.</strong> Cadence I – IV – V – I : elle installe la tonalité. Le dernier accord est la « maison » (le I).</p>
       <Timeline progression={CADENCE} currentIndex={cadenceIndex} />
@@ -156,7 +191,7 @@
       <button class="slot" class:ok={ok === true} class:ko={ok === false}
            style:background={a ? DEGREE_COLORS[a] : 'var(--panel)'}
            style:color={a ? textColor(a) : 'var(--muted)'}
-           disabled={phase !== 'revealed'} onclick={() => hear(progression[i])}>
+           disabled={phase !== 'revealed'} onclick={() => hearIndex(i)}>
         <span class="deg">{a ?? '·'}</span>
         {#if phase === 'revealed'}
           <span class="truth">{ok ? '✓' : '✗ ' + progression[i]} · {chordName(key, progression[i])}</span>
@@ -199,7 +234,7 @@
 <style>
   main {
     max-width: 480px; margin: 0 auto; padding: 12px 16px 24px;
-    min-height: 100dvh; display: flex; flex-direction: column; gap: 10px;
+    min-height: 100dvh; display: flex; flex-direction: column; gap: 10px; padding-bottom: 0;
   }
   header { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted); font-size: 14px; }
   .title { font-weight: 600; color: var(--fg); }
@@ -229,7 +264,10 @@
   .score { text-align: center; margin: 0; font-size: 20px; font-weight: 600; }
   .degrees { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .degree { height: 54px; font-size: 24px; font-weight: 700; }
-  .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .controls {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    position: sticky; bottom: 0; padding: 8px 0 12px; background: var(--bg);
+  }
   .controls.one { grid-template-columns: 1fr; }
   .controls.two { grid-template-columns: 1fr 1fr; }
   .ctl { height: 52px; background: var(--panel); color: var(--fg); font-size: 16px; }

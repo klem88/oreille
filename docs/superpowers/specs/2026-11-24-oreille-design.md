@@ -110,7 +110,20 @@ Deux vues, toujours affichées **après** la réponse (ou pendant l'écoute aux 
 Briques empilées de bas en haut, dans l'ordre du voicing réel. La basse est en bas et surlignée ; les guide-tones (tierce, septième) portent un point. Un renversement se lit comme la même pile avec une autre brique en bas. Animation : la pile se construit note par note au moment où l'accord sonne.
 
 ### 6.3 La roue de gravité (une progression)
-Tonique au centre, degrés disposés autour (ordre par quintes : IV à gauche, V à droite, vi, ii, iii, vii plus loin). La progression est tracée comme un fil qui s'éloigne du centre et y revient ; le V est dessiné tendu vers le I (élastique). Les dominantes secondaires apparaissent comme des satellites temporaires autour de leur cible. Sous la roue, une timeline de blocs colorés, un bloc par mesure, qui défile avec la lecture : c'est l'image qu'on veut que l'utilisateur « voie » en écoutant une chanson.
+Tonique au centre, degrés disposés autour (IV à gauche, V à droite, ii et vi en haut, iii et vii en bas). La progression est tracée comme un fil qui s'éloigne du centre et y revient ; le V est dessiné tendu vers le I (élastique). Les dominantes secondaires apparaissent comme des satellites temporaires autour de leur cible.
+
+**Zones de fonction** (ajout après le prototype) : trois secteurs en fond de roue, avec légende : famille **tonique** (I, iii, vi : repos, la maison), **sous-dominante** (IV, ii : on s'éloigne, ça prépare), **dominante** (V, vii : tension, ça veut rentrer). À la révélation, chaque accord est annoncé avec degré, nom et fonction (« vi · F#m · tonique, substitut du I »).
+
+Sous la roue, une timeline de blocs colorés, un bloc par mesure, qui défile avec la lecture : c'est l'image qu'on veut que l'utilisateur « voie » en écoutant une chanson.
+
+### 6.4 La ligne de basse (ajout après le prototype)
+Sous la timeline, une bande où chaque note de basse est un point placé en hauteur selon sa note réelle, relié au suivant par un trait, avec le **degré de la basse** écrit dessous (1, 5, 6, 4). On voit si la basse monte ou descend, de combien, et si elle revient. Chaque point rejoue la basse seule au tap. Au palier C, c'est la vue principale : I/3 affiche « 3 » à la basse et I - I/3 - IV se lit comme une basse qui monte par degrés conjoints.
+
+### 6.5 Le clavier (ajout après le prototype)
+Un petit clavier de trois octaves (SVG) où les touches du voicing joué sont surlignées, couleur du degré pour la basse. Affiché **uniquement après la réponse** (révélation, mode piano), jamais avant, pour ne pas ramener au calcul visuel. Taper un accord ailleurs (case, bloc, roue, basse) met à jour le clavier et le fait sonner.
+
+### 6.6 Règle générale
+Tout accord ou note affiché à l'écran après la réponse est réécoutable au tap.
 
 ## 7. Architecture technique
 
@@ -172,6 +185,9 @@ Règles du modèle de grille :
 
 Les progressions des paliers D-F et les paramètres de chaque palier (degrés autorisés, nombre de réécoutes, temps de réponse, seuil) sont décrits dans `content/paliers/*.yaml`. Un script de validation vérifie la syntaxe des degrés au build.
 
+### 7.2 bis Conduite de voix
+Les progressions ne sont pas jouées avec une fondamentale à octave fixe (artefact relevé lors du prototype : la basse du V tombe tantôt au-dessus, tantôt en dessous de celle du I selon la tonalité). Le générateur de voicings applique une **conduite de voix** : la basse va vers la fondamentale (ou la note de basse du renversement) la plus proche dans une tessiture de basse (Sol1 à Sol3), les voix supérieures choisissent le renversement fermé qui bouge le moins. La **direction** du premier mouvement de basse est tirée au sort d'une question à l'autre, car l'oreille doit reconnaître I → V que la basse monte d'une quinte ou descende d'une quarte.
+
 ### 7.3 Moteur d'exercice
 - `Question` = (palier, item, tonalité, timbre, voicing, registre, tempo, voix rendues) tirée au sort selon les boîtes de Leitner et les règles de 5.6.
 - `render(Question)` → événements Tone.js (cadence d'ancrage puis stimulus).
@@ -198,7 +214,8 @@ Une seule page, palier E uniquement (4 accords, majeur, piano seul), roue de gra
 - Attente forte de pouvoir **taper un élément pour réentendre son accord** (case de réponse, bloc de timeline, nœud de la roue) afin de l'ancrer. → Ajouté dans le prototype après révélation. **Pour l'app : règle générale, tout accord affiché est réécoutable au tap.**
 - La visualisation est jugée « pas trop mal ».
 - Vingt questions d'affilée, c'est trop long quand on échoue : le palier E est trop dur comme point d'entrée. **Pour l'app : séries courtes (5 à 10), démarrage au palier A ou D même pour un musicien formé, et un mode « jusqu'à 3 réussites de suite » plutôt qu'un nombre fixe.**
-- Reste à mesurer : score sur une série, utilité de la roue (aide / neutre / distrait), longueur de la cadence, suffisance de 2 réécoutes.
+- Deuxième retour : il manque la **fonction** des accords sur la roue, et l'utilisateur a remarqué que la basse du V tombe tantôt au-dessus, tantôt en dessous de celle du I (voicing à octave fixe). → Ajouté au prototype : halos et légende de fonction, annonce « degré · nom · fonction · rôle » de l'accord tapé, conduite de voix (7.2 bis), ligne de basse (6.4) et clavier (6.5), tous tapables.
+- Reste à mesurer : score sur une série, utilité de la roue (aide / neutre / distrait), longueur de la cadence, suffisance de 2 réécoutes, et si le clavier aide ou ramène au calcul.
 
 **Essai sur téléphone (iOS Safari, Android Chrome)** : _à compléter_ — premier tap audible, latence, temps de chargement des samples en 4G et wifi, double tap sur « Nouvelle question », taille des boutons à une main.
 
