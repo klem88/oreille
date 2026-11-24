@@ -62,6 +62,8 @@
     {@const p = pos(s)}
     {@const r = s === 1 ? 30 : 22}
     <g class="node" role="button" tabindex="0" data-step={s} onclick={() => onTap?.(s)} onkeydown={(e) => { if (e.key === 'Enter') onTap?.(s); }}>
+      <!-- zone de tap ≥ 48 px à la largeur affichée (240 px pour 300 unités) -->
+      <circle cx={p.x} cy={p.y} r={s === 1 ? 36 : 31} fill="transparent" />
       {#if played.has(s)}
         <circle cx={p.x} cy={p.y} r={r + 8} fill={DEGREE_COLORS[s]} opacity="0.3" />
       {/if}

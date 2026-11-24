@@ -59,6 +59,7 @@
     document.addEventListener('visibilitychange', onVis);
     return () => {
       document.removeEventListener('visibilitychange', onVis);
+      qToken += 1; // un chargement en cours ne doit plus lancer la lecture après la sortie
       player.cancel();
     };
   });
@@ -90,14 +91,22 @@
         return;
       }
       if (token !== qToken) return;
+      if (document.visibilityState === 'hidden') {
+        // page masquée pendant le chargement : ne pas jouer, proposer la reprise
+        phase = 'cadence';
+        interrupted = true;
+        return;
+      }
     }
     await runCadence();
   }
 
   async function guarded(run: () => Promise<boolean>): Promise<boolean> {
+    const token = qToken;
     try {
       return await run();
     } catch (e) {
+      if (token !== qToken) return false; // rejet d'une question déjà quittée
       error = `Lecture impossible : ${(e as Error).message}`;
       phase = 'loadError';
       return false;
@@ -202,15 +211,22 @@
     void startQuestion();
   }
 
+  let starting = $state(false);
+
   async function again() {
-    if (!seriesPalier || !app.progress) return;
+    if (starting || !seriesPalier || !app.progress) return;
+    starting = true;
     tapUnlock();
-    const r = beginSeries(app.progress, seriesPalier, Math.random, Date.now());
-    await app.commit(r.progress);
-    series = r.series;
-    qIndex = 0;
-    done = false;
-    void startQuestion();
+    try {
+      const r = beginSeries(app.progress, seriesPalier, Math.random, Date.now());
+      await app.commit(r.progress);
+      series = r.series;
+      qIndex = 0;
+      done = false;
+      void startQuestion();
+    } finally {
+      starting = false;
+    }
   }
 </script>
 
@@ -220,7 +236,7 @@
     <button class="ctl primary" onclick={() => go('#/')}>Accueil</button>
   </main>
 {:else if phase === 'bilan'}
-  <Bilan series={series} palier={seriesPalier} onAgain={again} onHome={() => go('#/')} />
+  <Bilan series={series} palier={seriesPalier} busy={starting} onAgain={again} onHome={() => go('#/')} />
 {:else}
   <main class="screen" class:revealed={phase === 'reveal'}>
     <header>
@@ -231,6 +247,7 @@
         question {qIndex + 1} / {series.questions.length}
       </span>
     </header>
+    {#if app.error}<p class="error">{app.error}</p>{/if}
 
     {#if phase === 'reveal' && given}
       <Reveal question={q} {given} {correct} {player} nextLabel={done ? 'Bilan' : 'Suivante'} onNext={next} />
@@ -312,7 +329,7 @@
     display: flex; flex-direction: column; gap: 12px;
   }
   header { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
-  .back { width: 44px; height: 44px; background: var(--panel); color: var(--fg); font-size: 20px; flex: none; }
+  .back { width: 48px; height: 48px; background: var(--panel); color: var(--fg); font-size: 20px; flex: none; }
   .title { flex: 1; color: var(--fg); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .counter { white-space: nowrap; }
   .tag { font-size: 11px; border: 1px solid var(--muted); border-radius: 8px; padding: 0 6px; margin-right: 4px; }

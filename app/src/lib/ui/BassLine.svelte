@@ -46,7 +46,7 @@
       onclick={() => onTap?.(i)}
       onkeydown={(e) => { if (e.key === 'Enter') onTap?.(i); }}
     >
-      <circle cx={x(i)} cy={y(midis[i])} r="18" fill="transparent" />
+      <circle cx={x(i)} cy={y(midis[i])} r="26" fill="transparent" />
       <circle cx={x(i)} cy={y(midis[i])} r={i === currentIndex ? 10 : 8} fill={colorOf(degrees[i])} stroke={i === currentIndex ? '#fff' : 'none'} stroke-width="2" />
       <text x={x(i)} y={H - 2} text-anchor="middle" fill="#f2f2f5" font-size="12" font-weight="700">{scaleDegreeOfNote(tonic, b)}</text>
       <text x={x(i)} y={y(midis[i]) - 13} text-anchor="middle" fill="#8a8a96" font-size="10">{displayNote(b)} {direction(i)}</text>
@@ -56,7 +56,7 @@
 
 <style>
   .label { margin: 0 0 2px; text-align: center; color: var(--muted); font-size: 13px; }
-  .bass { width: 100%; max-width: 300px; display: block; margin: 0 auto; }
+  .bass { width: 100%; max-width: 300px; display: block; margin: 0 auto; overflow: visible; }
   .pt { cursor: pointer; }
   .pt:focus { outline: none; }
 </style>

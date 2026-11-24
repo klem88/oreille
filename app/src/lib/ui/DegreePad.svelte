@@ -2,7 +2,7 @@
   import type { Palier } from '../content/paliers';
   import type { Answer, Question } from '../engine/question';
   import { parseDegree, type Degree } from '../theory/degree';
-  import { BASS_NAMES, degreeStyle, isSeventh } from './reveal';
+  import { BASS_NAMES, degreeStyle } from './reveal';
 
   /**
    * Pad de réponse selon le type du palier de la question :
@@ -20,7 +20,6 @@
     (question.mode === 'minor' ? (palier.degresMineur ?? []) : palier.degres).map(parseDegree),
   );
   const expectedCount = $derived(question.stimulus.length);
-  const seventh = $derived(isSeventh(question.degrees[0]));
   const BASSES = [1, 3, 5, 7] as const;
   let entry = $state<Degree[]>([]);
 
@@ -39,9 +38,8 @@
 {#if question.type === 'basse'}
   <div class="grid two">
     {#each BASSES as b (b)}
-      {#if b !== 7 || seventh}
-        <button class="pad neutral" {disabled} onclick={() => onAnswer({ kind: 'basse', bass: b })}>{BASS_NAMES[b]}</button>
-      {/if}
+      <!-- septième toujours proposée (R21) : la masquer révélerait la qualité de l'accord -->
+      <button class="pad neutral" {disabled} onclick={() => onAnswer({ kind: 'basse', bass: b })}>{BASS_NAMES[b]}</button>
     {/each}
   </div>
 {:else}

@@ -26,3 +26,9 @@ describe('reveal', () => {
     expect(keyboardRange(['C3', 'E6'])).toEqual([48, 95]);
   });
 });
+
+describe('reveal : note étrangère', () => {
+  it('une note hors accord lève une erreur au lieu de passer pour la fondamentale', () => {
+    expect(() => bricksOf('C', 'major', parseDegree('I'), { bass: 'C3', upper: ['D4', 'E4', 'G4'] })).toThrow(/absente/);
+  });
+});

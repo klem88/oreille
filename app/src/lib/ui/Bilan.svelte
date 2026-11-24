@@ -4,7 +4,13 @@
   import { app } from './state.svelte';
 
   /** Bilan de fin de série : score sur les questions qui comptent (hors rappels), validation, déblocage. */
-  let { series, palier, onAgain, onHome }: { series: SeriesState; palier: Palier; onAgain: () => void; onHome: () => void } = $props();
+  let {
+    series,
+    palier,
+    busy = false,
+    onAgain,
+    onHome,
+  }: { series: SeriesState; palier: Palier; busy?: boolean; onAgain: () => void; onHome: () => void } = $props();
 
   const score = $derived(scoreOf(series));
   const pct = $derived(score.total ? Math.round((score.correct / score.total) * 100) : 0);
@@ -32,8 +38,9 @@
     <p class="ok">Palier {next.id} · {next.titre} débloqué.</p>
   {/if}
 
+  {#if app.error}<p class="error">{app.error}</p>{/if}
   <div class="actions">
-    <button class="ctl primary" onclick={onAgain}>Encore une série</button>
+    <button class="ctl primary" disabled={busy} onclick={onAgain}>Encore une série</button>
     <button class="ctl" onclick={onHome}>Accueil</button>
   </div>
 </main>
@@ -44,6 +51,7 @@
   .score { margin: 0; font-size: 56px; font-weight: 700; }
   .hint { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.4; }
   .ok { margin: 0; color: #6fdc8c; font-weight: 600; font-size: 17px; }
+  .error { margin: 0; color: #ff6b6b; font-size: 14px; }
   .actions { display: grid; gap: 10px; margin-top: 12px; }
   .ctl { min-height: 52px; background: var(--panel); color: var(--fg); font-size: 17px; }
   .ctl.primary { background: var(--fg); color: var(--bg); font-weight: 600; }

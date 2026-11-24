@@ -39,13 +39,13 @@
   .label { margin: 0 0 4px; text-align: center; color: var(--muted); font-size: 13px; }
   .pile { margin: 0 auto; display: flex; flex-direction: column; gap: 3px; max-width: 280px; }
   .brick {
-    height: 30px; border-radius: 6px; padding: 0 10px; display: flex; align-items: center; gap: 8px;
+    min-height: 48px; border-radius: 6px; padding: 0 10px; display: flex; align-items: center; gap: 8px;
     font-size: 14px; font-weight: 700; border: 2px solid transparent;
   }
   .pile.dark .brick { filter: brightness(0.78); }
   .pile.angular .brick { border-radius: 0; }
   .pile.blur .brick { box-shadow: 0 0 8px currentColor; }
-  .brick.bass { height: 38px; border-color: #fff; filter: none; }
+  .brick.bass { min-height: 52px; border-color: #fff; filter: none; }
   .note { min-width: 34px; text-align: left; }
   .tone { flex: 1; text-align: left; font-weight: 500; font-size: 13px; }
   .guide { margin-left: 6px; font-size: 12px; }

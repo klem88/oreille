@@ -39,6 +39,7 @@
   // svelte-ignore state_referenced_locally
   let shownColor = $state(colorOf(question.degrees[0]));
   let current = $state(-1);
+  let playError = $state('');
   const range = $derived(keyboardRange([...chords.flat(), ...shown]));
 
   function show(i: number) {
@@ -87,12 +88,16 @@
       kind === 'stimulus' ? chords
         : kind === 'basse' ? q.stimulus.map((v) => [v.bass])
         : q.stimulus.map((v, i) => guideTones(q.key, q.mode, q.degrees[i], v));
-    await player.sequence(seq, q.bpm, q.timbre, (i) => {
-      current = i;
-      shown = seq[i];
-      shownColor = colorOf(q.degrees[i]);
-    });
-    current = -1;
+    try {
+      const ok = await player.sequence(seq, q.bpm, q.timbre, (i) => {
+        current = i;
+        shown = seq[i];
+        shownColor = colorOf(q.degrees[i]);
+      });
+      if (ok) current = -1; // résolution périmée : un tap plus récent a pris la main
+    } catch (e) {
+      playError = `Lecture impossible : ${(e as Error).message}`;
+    }
   }
 </script>
 
@@ -124,6 +129,7 @@
 
   <BassLine basses={q.stimulus.map((v) => v.bass)} degrees={q.degrees} tonic={q.key} currentIndex={current} onTap={hearBass} />
   <Keyboard notes={shown} bassColor={shownColor} {range} />
+  {#if playError}<p class="error">{playError}</p>{/if}
   <p class="meta">Tonalité : {q.key} {q.mode === 'major' ? 'majeur' : 'mineur'} · {q.bpm} bpm · {q.timbre}</p>
 
   <div class="actions">
@@ -149,6 +155,7 @@
   .chip.current { border-color: #fff; }
   .chip .deg { min-width: 56px; height: 40px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 17px; padding: 0 6px; }
   .chip .txt { font-size: 14px; line-height: 1.3; }
+  .error { margin: 0; text-align: center; color: #ff6b6b; font-size: 14px; }
   .hint, .meta { margin: 0; text-align: center; color: var(--muted); font-size: 12px; }
   .actions {
     position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;

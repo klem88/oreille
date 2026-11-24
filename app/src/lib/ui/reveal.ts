@@ -1,6 +1,6 @@
 import { Note } from 'tonal';
 import { ROLE, chordName, chordPitchClasses, functionOf, type Fonction, type Mode } from '../theory/chord';
-import { baseStep, parseDegree, type Degree, type Step } from '../theory/degree';
+import { baseStep, type Degree, type Step } from '../theory/degree';
 import { colorOf, isAltered, DEGREE_COLORS } from '../theory/colors';
 import { notesOf, type Voicing } from '../theory/voicing';
 import type { Answer, Question } from '../engine/question';
@@ -23,12 +23,6 @@ export const FUNCTION_HINTS: Record<Fonction, string> = {
   'sous-dominante': "on s'éloigne, ça prépare",
   dominante: 'tension, ça veut rentrer',
 };
-
-const SEVENTH_QUALITIES = ['7', 'maj7', 'm7', 'ø7', '°7'];
-
-export function isSeventh(d: Degree): boolean {
-  return SEVENTH_QUALITIES.includes(d.quality);
-}
 
 /** Texte foncé sur le jaune du iii, clair ailleurs. */
 export function textColorOfStep(step: Step): string {
@@ -84,8 +78,9 @@ export interface Brick {
 function toneOf(pcs: string[], d: Degree, note: string): ToneRole {
   const c = Note.chroma(note);
   const i = pcs.findIndex((pc) => Note.chroma(pc) === c);
+  if (i < 0) throw new Error(`Note ${note} absente de l'accord ${d.label}`);
   if (i === 3) return d.quality === '6' ? '6' : '7';
-  return (['1', '3', '5'] as const)[Math.max(0, i)];
+  return (['1', '3', '5'] as const)[i];
 }
 
 /** Briques de la pile (spec 6.2), de bas en haut dans l'ordre réel du voicing. */
@@ -120,11 +115,6 @@ export function answerText(a: Answer): string {
   if (a.kind === 'basse') return `basse = ${BASS_NAMES[a.bass]}`;
   if (a.kind === 'degre') return a.degree;
   return a.degrees.join(' – ');
-}
-
-/** Degrés proposés par le pad d'un palier `degre`/`progression` : les triades du mode (R7). */
-export function padDegrees(degres: string[]): Degree[] {
-  return degres.map(parseDegree);
 }
 
 /** Libellés des sept nœuds de la roue (triades diatoniques du mode). */

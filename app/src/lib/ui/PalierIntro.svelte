@@ -42,7 +42,7 @@
 
 <style>
   .screen { max-width: 480px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-  .back { align-self: flex-start; min-height: 44px; padding: 0 12px; background: var(--panel); color: var(--fg); }
+  .back { align-self: flex-start; min-height: 48px; padding: 0 14px; background: var(--panel); color: var(--fg); }
   h1 { margin: 0; font-size: 24px; }
   .expl { margin: 0; font-size: 18px; line-height: 1.4; }
   .hint { color: var(--muted); font-size: 14px; margin: 0; }
