@@ -34,7 +34,7 @@ describe('parseDegree', () => {
     for (const s of all) expect(parseDegree(s).label).toBe(s);
   });
   test('syntaxe invalide', () => {
-    for (const s of ['VIII', 'IIII', 'vii7', 'V°', 'i+', 'i6', 'Im7', 'IVmaj7x', 'imaj7', 'Iø7', 'I°7', 'I/2', 'I/4', '', 'x', 'V7/']) {
+    for (const s of ['VIII', 'IIII', 'vii7', 'V°', 'i+', 'i6', 'Im7', 'viim7', 'I/7', 'V+/7', 'vi/7', 'vii°/7', 'I6/7', 'IVmaj7x', 'imaj7', 'Iø7', 'I°7', 'I/2', 'I/4', '', 'x', 'V7/']) {
       expect(() => parseDegree(s), s).toThrow(DegreeSyntaxError);
     }
   });

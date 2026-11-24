@@ -21,6 +21,7 @@ const ROMANS: Record<string, Step> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, 
 const ROMAN_TEXT = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 const UPPER_QUALITIES: Quality[] = ['maj', 'maj7', '7', 'aug', '6'];
 
+const SEVENTHS: Quality[] = ['7', 'maj7', 'm7', 'ø7', '°7'];
 const RE = /^(b|#)?([ivIV]+)(maj7|ø7|°7|m7|7|6|\+|°)?(?:\/(\d))?(?:\/(.+))?$/;
 
 function qualityOf(upper: boolean, step: Step, suffix: string | undefined): Quality | null {
@@ -30,7 +31,7 @@ function qualityOf(upper: boolean, step: Step, suffix: string | undefined): Qual
     case '+': return upper ? 'aug' : null;
     case '6': return upper ? '6' : null;
     case '7': return upper ? '7' : step === 7 ? null : 'm7';
-    case 'm7': return upper ? null : 'm7';
+    case 'm7': return upper || step === 7 ? null : 'm7';
     case 'maj7': return upper ? 'maj7' : null;
     case 'ø7': return upper ? null : 'ø7';
     case '°7': return upper ? null : '°7';
@@ -70,6 +71,7 @@ export function parseDegree(text: string): Degree {
   if (bassRaw !== undefined) {
     if (!['1', '3', '5', '7'].includes(bassRaw)) throw new DegreeSyntaxError(text, 'basse');
     bass = Number(bassRaw) as 1 | 3 | 5 | 7;
+    if (bass === 7 && !SEVENTHS.includes(quality)) throw new DegreeSyntaxError(text, 'basse 7 sans septième');
   }
   const d: Degree = {
     step,
