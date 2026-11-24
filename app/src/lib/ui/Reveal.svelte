@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Answer, Question } from '../engine/question';
   import { colorOf } from '../theory/colors';
-  import { parseDegree, type Step } from '../theory/degree';
+  import { parseDegree, type Degree, type Step } from '../theory/degree';
+  import { chordName } from '../theory/chord';
   import { DEGREE_COLORS } from '../theory/colors';
   import { notesOf, voiceChords } from '../theory/voicing';
   import BassLine from './BassLine.svelte';
@@ -17,6 +18,8 @@
   /** Révélation, après la réponse seulement : résultat, annonce, vues ; tout est tapable et joue (spec 6.6). */
   let {
     question,
+    cadenceDegrees,
+    gapMs,
     given,
     correct,
     player,
@@ -24,6 +27,10 @@
     onNext,
   }: {
     question: Question;
+    /** Degrés de la cadence d'ancrage jouée avant la question (q.cadence en est le voicing). */
+    cadenceDegrees: Degree[];
+    /** Silence entre l'ancrage et la question, le même qu'à l'écoute. */
+    gapMs: number;
     given: Answer;
     correct: boolean;
     player: Player;
@@ -39,7 +46,10 @@
   // svelte-ignore state_referenced_locally
   let shownColor = $state(colorOf(question.degrees[0]));
   let current = $state(-1);
+  /** Accord de la cadence en cours de lecture ou tapé (-1 : aucun). */
+  let cadCurrent = $state(-1);
   let playError = $state('');
+  const cadNames = $derived(cadenceDegrees.map((d) => chordName(q.key, q.mode, d)));
   const range = $derived(keyboardRange([...chords.flat(), ...shown]));
 
   function show(i: number) {
@@ -51,6 +61,7 @@
     tapUnlock();
     show(i);
     current = i;
+    cadCurrent = -1;
     player.chord(chords[i], q.timbre);
   }
 
@@ -88,8 +99,41 @@
     player.chord(shown, q.timbre);
   }
 
+  /** Accord de la cadence tapé : on le réentend, en contexte de la tonalité. */
+  function hearCadence(i: number) {
+    tapUnlock();
+    current = -1;
+    cadCurrent = i;
+    shown = q.cadence[i];
+    shownColor = colorOf(cadenceDegrees[i]);
+    player.chord(q.cadence[i], q.timbre);
+  }
+
+  /** Réécoute en contexte : la cadence d'ancrage (2 temps par accord), le même silence, puis la question. */
+  async function replayInContext() {
+    tapUnlock();
+    current = -1;
+    try {
+      const cadOk = await player.sequence(q.cadence, q.bpm, q.timbre, (i) => {
+        cadCurrent = i;
+        shown = q.cadence[i];
+        shownColor = colorOf(cadenceDegrees[i]);
+      }, 2);
+      cadCurrent = -1;
+      if (!cadOk || !(await player.wait(gapMs))) return;
+      const ok = await player.sequence(chords, q.bpm, q.timbre, (i) => {
+        current = i;
+        show(i);
+      });
+      if (ok) current = -1;
+    } catch (e) {
+      playError = `Lecture impossible : ${(e as Error).message}`;
+    }
+  }
+
   async function replay(kind: 'stimulus' | 'basse' | 'guides') {
     tapUnlock();
+    cadCurrent = -1;
     const seq =
       kind === 'stimulus' ? chords
         : kind === 'basse' ? q.stimulus.map((v) => [v.bass])
@@ -126,6 +170,8 @@
   </ul>
   <p class="hint">Tape un accord, une brique, un point ou une touche de la roue pour le réentendre.</p>
 
+  <Timeline degrees={cadenceDegrees} names={cadNames} currentIndex={cadCurrent} label="Cadence d'ancrage (le contexte)" onTap={hearCadence} />
+
   {#if q.type === 'progression'}
     <Wheel degrees={q.degrees} mode={q.mode} currentIndex={current} onTap={hearStep} />
     <Timeline degrees={q.degrees} names={infos.map((x) => x.name)} currentIndex={current} label="La progression, en {q.key} {q.mode === 'major' ? 'majeur' : 'mineur'}" onTap={hearChord} />
@@ -141,8 +187,9 @@
   <div class="actions">
     <button class="ctl small" onclick={() => replay('basse')}>Réécouter la basse</button>
     <button class="ctl small" onclick={() => replay('guides')}>Réécouter les guide-tones</button>
+    <button class="ctl small" onclick={replayInContext}>Réécouter avec l'ancrage</button>
     <button class="ctl" onclick={() => replay('stimulus')}>Réécouter</button>
-    <button class="ctl primary" onclick={onNext}>{nextLabel}</button>
+    <button class="ctl primary wide" onclick={onNext}>{nextLabel}</button>
   </div>
 </section>
 
@@ -170,4 +217,5 @@
   .ctl { min-height: 48px; background: var(--panel); color: var(--fg); font-size: 16px; }
   .ctl.small { font-size: 14px; }
   .ctl.primary { background: var(--fg); color: var(--bg); font-weight: 600; }
+  .ctl.wide { grid-column: 1 / -1; }
 </style>

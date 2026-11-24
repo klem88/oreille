@@ -297,7 +297,7 @@
     <Offline />
 
     {#if phase === 'reveal' && given}
-      <Reveal question={qp ?? q} {given} {correct} {player} nextLabel={done ? 'Bilan' : 'Suivante'} onNext={next} />
+      <Reveal question={qp ?? q} {cadenceDegrees} gapMs={GAP_MS} {given} {correct} {player} nextLabel={done ? 'Bilan' : 'Suivante'} onNext={next} />
     {:else}
       <section class="step">
         {#if phase === 'ready'}
