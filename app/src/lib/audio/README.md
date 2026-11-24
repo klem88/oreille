@@ -16,11 +16,11 @@
 
 ## Coupure (stop / accord rapide)
 
-Jamais de  : il planifie son relâchement immédiatement et vide les sources actives, donc  ne couperait plus rien. Chaque voix fait  puis  (le nouvel accord coupe le précédent) ; la fin d'un accord isolé est un relâchement planifié (timer calé sur l'horloge audio) protégé par un  : il ne fait rien si un jeu plus récent a eu lieu. En séquence, l'accord suivant relâche le précédent et l'événement de fin relâche le dernier.  relâche tout maintenant et neutralise les timers ; pour la nappe, le relâchement est ramené à 80 ms (la queue de 1,2 s ne sert qu'au legato entre accords).
+Jamais de `triggerAttackRelease` : il planifie son relâchement immédiatement et vide les sources actives, donc `releaseAll()` ne couperait plus rien. Chaque voix fait `releaseAll(time)` puis `triggerAttack(notes, time)` (le nouvel accord coupe le précédent) ; la fin d'un accord isolé est un relâchement planifié (timer calé sur l'horloge audio) protégé par un `playId` : il ne fait rien si un jeu plus récent a eu lieu. En séquence, l'accord suivant relâche le précédent et l'événement de fin relâche le dernier. `stop()` relâche tout maintenant et neutralise les timers ; pour la nappe, le relâchement est ramené à 80 ms (la queue de 1,2 s ne sert qu'au legato entre accords).
 
 ## Résultats (navigateur intégré, 375x812, Chrome)
 
-Vérifié par script (sources actives du Sampler : , de la nappe : ) : après un accord 4 sources ; 50 ms après  0 (piano, guitare), nappe 0 à 250 ms ; deux accords rapides -> un seul accord actif (4) pour piano et guitare ; cadence puis stop -> 0 ; expiration d'un accord de durée 2n -> 0. Nappe : deux accords rapides laissent la queue de relâchement de 1,2 s du premier (legato voulu). Chargement des trois timbres, 0 erreur console.
+Vérifié par script (sources actives du Sampler : `_activeSources`, de la nappe : `activeVoices`) : après un accord 4 sources ; 50 ms après `stop()` 0 (piano, guitare), nappe 0 à 250 ms ; deux accords rapides -> un seul accord actif (4) pour piano et guitare ; cadence puis stop -> 0 ; expiration d'un accord de durée 2n -> 0. Nappe : deux accords rapides laissent la queue de relâchement de 1,2 s du premier (legato voulu). Chargement des trois timbres, 0 erreur console.
 
 Reste à vérifier à l'oreille sur appareil : que « stop » coupe net, que deux taps rapides ne se superposent pas audiblement, la qualité sonore, et iOS (commutateur silencieux, écran verrouillé).
-Le callback  (Tone.Draw, rAF) est peu fiable quand le panneau navigateur est masqué ; il ne sert qu'à l'animation.
+Le callback `onChord` (Tone.Draw, rAF) est peu fiable quand le panneau navigateur est masqué ; il ne sert qu'à l'animation.
