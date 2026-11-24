@@ -17,6 +17,15 @@
   type Phase = 'ready' | 'loading' | 'loadError' | 'cadence' | 'gap' | 'stimulus' | 'chant' | 'answer' | 'reveal' | 'bilan';
 
   const GAP_MS = 700;
+  /** Au-delà, le timbre à samples est abandonné (réseau muet) ; le chargement continue en arrière-plan. */
+  const LOAD_TIMEOUT_MS = 8000;
+
+  function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const id = setTimeout(() => reject(new Error('délai dépassé')), ms);
+      p.then((v) => { clearTimeout(id); resolve(v); }, (e) => { clearTimeout(id); reject(e); });
+    });
+  }
   const paliers = loadPaliers();
   const player = new Player();
 
@@ -90,14 +99,11 @@
     if (!isLoaded(q.timbre)) {
       phase = 'loading';
       let failure = '';
-      if (navigator.onLine === false) {
-        failure = 'hors ligne';
-      } else {
-        try {
-          await loadInstrument(q.timbre);
-        } catch (e) {
-          failure = (e as Error)?.message ?? String(e);
-        }
+      // toujours tenter le chargement : hors ligne, le service worker sert les samples du cache
+      try {
+        await withTimeout(loadInstrument(q.timbre), LOAD_TIMEOUT_MS);
+      } catch (e) {
+        failure = (e as Error)?.message ?? String(e);
       }
       if (token !== qToken) return;
       if (failure) {
@@ -113,7 +119,7 @@
         if (token !== qToken) return;
         tb = 'nappe';
         net.fallback = true;
-        if (navigator.onLine !== false) error = `Son ${q.timbre} indisponible : question jouée à la nappe.`;
+        if (navigator.onLine !== false) error = `Son ${q.timbre} indisponible (${failure}) : question jouée à la nappe.`;
       } else {
         net.fallback = false;
       }

@@ -95,7 +95,7 @@ let preloaded = false;
 
 /** Précharge en arrière-plan les timbres à samples (ils entrent ainsi dans le cache hors ligne). Erreurs ignorées. */
 export function preloadSamples(): void {
-  if (preloaded || navigator.onLine === false) return;
+  if (preloaded) return; // hors ligne aussi : les samples déjà en cache se chargent via le service worker
   preloaded = true;
   for (const t of ['piano', 'guitare'] as const) {
     if (!isLoaded(t)) loadInstrument(t).catch(() => { preloaded = false; });
