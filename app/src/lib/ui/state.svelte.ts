@@ -27,3 +27,18 @@ class AppState {
 }
 
 export const app = new AppState();
+
+/** Connexion et repli sonore : alimente la bannière hors ligne (R11, R22). */
+class NetState {
+  online = $state(typeof navigator === 'undefined' ? true : navigator.onLine);
+  /** Un timbre à samples n'a pas pu être chargé : la question est jouée à la nappe. */
+  fallback = $state(false);
+
+  constructor() {
+    if (typeof window === 'undefined') return;
+    window.addEventListener('online', () => { this.online = true; });
+    window.addEventListener('offline', () => { this.online = false; });
+  }
+}
+
+export const net = new NetState();

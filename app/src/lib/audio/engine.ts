@@ -90,3 +90,14 @@ export function playChord(notes: string[], timbre: Timbre, duration: Tone.Unit.T
 export function playNote(note: string, timbre: Timbre, duration: Tone.Unit.Time = '1n'): void {
   playNow([note], timbre, duration);
 }
+
+let preloaded = false;
+
+/** Précharge en arrière-plan les timbres à samples (ils entrent ainsi dans le cache hors ligne). Erreurs ignorées. */
+export function preloadSamples(): void {
+  if (preloaded || navigator.onLine === false) return;
+  preloaded = true;
+  for (const t of ['piano', 'guitare'] as const) {
+    if (!isLoaded(t)) loadInstrument(t).catch(() => { preloaded = false; });
+  }
+}

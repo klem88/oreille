@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isLoaded, loadInstrument } from '../audio/engine';
+  import { isLoaded, loadInstrument, preloadSamples, type Timbre } from '../audio/engine';
   import { loadPaliers } from '../content/paliers';
   import type { Answer } from '../engine/question';
   import { answer, beginSeries, type SeriesState } from '../engine/session';
@@ -11,7 +11,8 @@
   import Timeline from './Timeline.svelte';
   import { Player, tapUnlock } from './playback.svelte';
   import { go } from './router.svelte';
-  import { app } from './state.svelte';
+  import Offline from './Offline.svelte';
+  import { app, net } from './state.svelte';
 
   type Phase = 'ready' | 'loading' | 'loadError' | 'cadence' | 'gap' | 'stimulus' | 'chant' | 'answer' | 'reveal' | 'bilan';
 
@@ -31,10 +32,13 @@
   let correct = $state(false);
   let done = $state(false);
   let error = $state('');
+  /** Timbre réellement joué : celui de la question, ou « nappe » en repli (hors ligne / échec de chargement). */
+  let tb = $state<Timbre | null>(null);
   /** Jeton de question : un chargement ou une lecture d'une question quittée est ignoré. */
   let qToken = 0;
 
   const q = $derived(series ? series.questions[qIndex] : null);
+  const qp = $derived(q && tb && tb !== q.timbre ? { ...q, timbre: tb } : q);
   const qPalier = $derived(q ? paliers.find((p) => p.id === q.palier)! : null);
   const seriesPalier = $derived(series ? paliers.find((p) => p.id === series!.palier)! : null);
   const isRecall = $derived(series ? series.recall[qIndex] : false);
@@ -73,6 +77,7 @@
     replaysUsed = 0;
     given = null;
     error = '';
+    tb = null;
   }
 
   /** Premier tap (ou « Suivante ») : charge le timbre si besoin, puis ancrage → écoute. */
@@ -80,17 +85,38 @@
     reset();
     if (!q) return;
     const token = qToken;
+    tb = q.timbre;
+    net.fallback = false;
     if (!isLoaded(q.timbre)) {
       phase = 'loading';
-      try {
-        await loadInstrument(q.timbre);
-      } catch (e) {
-        if (token !== qToken) return;
-        error = `Chargement du son (${q.timbre}) impossible : ${(e as Error)?.message ?? String(e)}`;
-        phase = 'loadError';
-        return;
+      let failure = '';
+      if (navigator.onLine === false) {
+        failure = 'hors ligne';
+      } else {
+        try {
+          await loadInstrument(q.timbre);
+        } catch (e) {
+          failure = (e as Error)?.message ?? String(e);
+        }
       }
       if (token !== qToken) return;
+      if (failure) {
+        // repli : la nappe (synthèse locale) est toujours disponible, jamais de chargement sans fin
+        try {
+          await loadInstrument('nappe');
+        } catch (e) {
+          if (token !== qToken) return;
+          error = `Chargement du son (${q.timbre}) impossible : ${(e as Error)?.message ?? String(e)}`;
+          phase = 'loadError';
+          return;
+        }
+        if (token !== qToken) return;
+        tb = 'nappe';
+        net.fallback = true;
+        if (navigator.onLine !== false) error = `Son ${q.timbre} indisponible : question jouée à la nappe.`;
+      } else {
+        net.fallback = false;
+      }
       if (document.visibilityState === 'hidden') {
         // page masquée pendant le chargement : ne pas jouer, proposer la reprise
         phase = 'cadence';
@@ -98,6 +124,7 @@
         return;
       }
     }
+    preloadSamples();
     await runCadence();
   }
 
@@ -116,7 +143,7 @@
   async function runCadence() {
     if (!q) return;
     phase = 'cadence';
-    const ok = await guarded(() => player.sequence(q.cadence, q.bpm, q.timbre, (i) => (cadIdx = i), 2));
+    const ok = await guarded(() => player.sequence(q.cadence, q.bpm, tb ?? q.timbre, (i) => (cadIdx = i), 2));
     cadIdx = -1;
     if (!ok) return;
     phase = 'gap';
@@ -127,7 +154,7 @@
   async function runStimulus() {
     if (!q) return;
     phase = 'stimulus';
-    const ok = await guarded(() => player.sequence(stimulus, q.bpm, q.timbre, (i) => (stimIdx = i), 4));
+    const ok = await guarded(() => player.sequence(stimulus, q.bpm, tb ?? q.timbre, (i) => (stimIdx = i), 4));
     stimIdx = -1;
     if (ok) afterListen();
   }
@@ -170,14 +197,14 @@
     if (!q || replaysLeft <= 0 || player.active) return;
     tapUnlock();
     replaysUsed += 1;
-    await guarded(() => player.sequence(stimulus, q.bpm, q.timbre, (i) => (stimIdx = i), 4));
+    await guarded(() => player.sequence(stimulus, q.bpm, tb ?? q.timbre, (i) => (stimIdx = i), 4));
     stimIdx = -1;
   }
 
   async function replayBass() {
     if (!q || player.active) return;
     tapUnlock();
-    await guarded(() => player.sequence(q.stimulus.map((v) => [v.bass]), q.bpm, q.timbre, (i) => (stimIdx = i), 4));
+    await guarded(() => player.sequence(q.stimulus.map((v) => [v.bass]), q.bpm, tb ?? q.timbre, (i) => (stimIdx = i), 4));
     stimIdx = -1;
   }
 
@@ -248,9 +275,10 @@
       </span>
     </header>
     {#if app.error}<p class="error">{app.error}</p>{/if}
+    <Offline />
 
     {#if phase === 'reveal' && given}
-      <Reveal question={q} {given} {correct} {player} nextLabel={done ? 'Bilan' : 'Suivante'} onNext={next} />
+      <Reveal question={qp ?? q} {given} {correct} {player} nextLabel={done ? 'Bilan' : 'Suivante'} onNext={next} />
     {:else}
       <section class="step">
         {#if phase === 'ready'}
