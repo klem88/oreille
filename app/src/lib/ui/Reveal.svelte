@@ -12,7 +12,8 @@
   import Wheel from './Wheel.svelte';
   import { tapUnlock, type Player } from './playback.svelte';
   import {
-    WHEEL_LABELS, announce, answerText, bricksOf, chordInfo, degreeStyle, expectedText, guideTones, keyboardRange,
+    WHEEL_LABELS, announce, answerText, bricksOf, chordInfo, degreeStyle, displayNote, expectedText, guideTones,
+    keyboardRange, scaleDegreeOfNote,
   } from './reveal';
 
   /** Révélation, après la réponse seulement : résultat, annonce, vues ; tout est tapable et joue (spec 6.6). */
@@ -109,6 +110,33 @@
     player.chord(q.cadence[i], q.timbre);
   }
 
+  /** Basse d'un accord de la cadence (la première note du voicing), seule. */
+  function hearCadenceBass(i: number) {
+    tapUnlock();
+    current = -1;
+    cadCurrent = i;
+    shown = [q.cadence[i][0]];
+    shownColor = colorOf(cadenceDegrees[i]);
+    player.note(q.cadence[i][0], q.timbre);
+  }
+
+  /** Toute la basse de la cadence, au tempo de l'écoute. */
+  async function replayCadenceBass() {
+    tapUnlock();
+    current = -1;
+    const seq = q.cadence.map((c) => [c[0]]);
+    try {
+      const ok = await player.sequence(seq, q.bpm, q.timbre, (i) => {
+        cadCurrent = i;
+        shown = seq[i];
+        shownColor = colorOf(cadenceDegrees[i]);
+      }, 2);
+      if (ok) cadCurrent = -1;
+    } catch (e) {
+      playError = `Lecture impossible : ${(e as Error).message}`;
+    }
+  }
+
   /** Réécoute en contexte : la cadence d'ancrage (2 temps par accord), le même silence, puis la question. */
   async function replayInContext() {
     tapUnlock();
@@ -171,6 +199,14 @@
   <p class="hint">Tape un accord, une brique, un point ou une touche de la roue pour le réentendre.</p>
 
   <Timeline degrees={cadenceDegrees} names={cadNames} currentIndex={cadCurrent} label="Cadence d'ancrage (le contexte)" onTap={hearCadence} />
+  <div class="cadbass" aria-label="Basse de l'ancrage">
+    <button class="cadbass-all" onclick={replayCadenceBass}>Basse de l'ancrage ▸</button>
+    {#each q.cadence as c, i (i)}
+      <button class="cadbass-note" class:current={i === cadCurrent} aria-label="Basse {displayNote(c[0])}" onclick={() => hearCadenceBass(i)}>
+        {scaleDegreeOfNote(q.key, c[0])}<small>{displayNote(c[0])}</small>
+      </button>
+    {/each}
+  </div>
 
   {#if q.type === 'progression'}
     <Wheel degrees={q.degrees} mode={q.mode} currentIndex={current} onTap={hearStep} />
@@ -208,6 +244,12 @@
   .chip.current { border-color: #fff; }
   .chip .deg { min-width: 56px; height: 40px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 17px; padding: 0 6px; }
   .chip .txt { font-size: 14px; line-height: 1.3; }
+  .cadbass { display: flex; align-items: center; gap: 6px; margin-top: -6px; }
+  .cadbass button { min-height: 48px; background: transparent; color: var(--muted); border: 1px solid #2c2c34; }
+  .cadbass-all { font-size: 12px; padding: 0 8px; }
+  .cadbass-note { flex: 1; font-size: 14px; font-weight: 700; display: grid; place-items: center; line-height: 1.1; }
+  .cadbass-note small { font-size: 10px; font-weight: 400; }
+  .cadbass-note.current { border-color: #fff; color: var(--fg); }
   .error { margin: 0; text-align: center; color: #ff6b6b; font-size: 14px; }
   .hint, .meta { margin: 0; text-align: center; color: var(--muted); font-size: 12px; }
   .actions {
