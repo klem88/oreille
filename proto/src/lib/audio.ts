@@ -2,10 +2,11 @@ import * as Tone from 'tone';
 
 let sampler: Tone.Sampler | null = null;
 let loading: Promise<void> | null = null;
+let generation = 0;
 
 const SALAMANDER = 'https://tonejs.github.io/audio/salamander/';
 
-/** Charge le piano Salamander (idempotent). */
+/** Charge le piano Salamander (idempotent ; un échec permet de réessayer). */
 export function loadPiano(): Promise<void> {
   if (loading) return loading;
   loading = new Promise<void>((resolve, reject) => {
@@ -23,18 +24,22 @@ export function loadPiano(): Promise<void> {
       release: 1,
       baseUrl: SALAMANDER,
       onload: () => resolve(),
-      onerror: (e) => reject(e),
+      onerror: (e) => { loading = null; sampler = null; reject(e); },
     }).toDestination();
   });
   return loading;
 }
 
-/** À appeler dans un gestionnaire de tap (contrainte iOS). */
+/** À appeler de façon synchrone dans un gestionnaire de tap (contrainte iOS). */
 export async function unlock(): Promise<void> {
+  // iOS : ne pas être coupé par le commutateur silencieux (Safari 16.4+)
+  const nav = navigator as Navigator & { audioSession?: { type: string } };
+  if (nav.audioSession) nav.audioSession.type = 'playback';
   await Tone.start();
 }
 
 export function stop(): void {
+  generation += 1;
   const t = Tone.getTransport();
   t.stop();
   t.cancel();
@@ -44,7 +49,7 @@ export function stop(): void {
 /**
  * Joue chaque accord une mesure (4 temps) au tempo donné.
  * onChord(i) est appelé au début de chaque accord ; la promesse se résout à la fin.
- * Toute séquence en cours est annulée.
+ * Toute séquence en cours est annulée. Les callbacks d'une séquence annulée sont ignorés.
  */
 export function playSequence(
   chords: string[][],
@@ -53,22 +58,27 @@ export function playSequence(
 ): Promise<void> {
   if (!sampler) throw new Error('piano non chargé');
   stop();
+  const gen = generation;
   const t = Tone.getTransport();
   t.bpm.value = bpm;
   const s = sampler;
   return new Promise<void>((resolve) => {
     chords.forEach((notes, i) => {
       t.schedule((time) => {
+        if (gen !== generation) return;
         s.triggerAttackRelease(notes, '1m', time);
-        if (onChord) Tone.getDraw().schedule(() => onChord(i), time);
+        if (onChord) Tone.getDraw().schedule(() => { if (gen === generation) onChord(i); }, time);
       }, `${i}m`);
     });
     t.schedule((time) => {
-      Tone.getDraw().schedule(() => {
+      // fin de séquence : basée sur l'horloge audio, pas sur requestAnimationFrame
+      const delay = Math.max(0, (time - Tone.now()) * 1000);
+      setTimeout(() => {
+        if (gen !== generation) return;
         t.stop();
         t.cancel();
         resolve();
-      }, time);
+      }, delay);
     }, `${chords.length}m`);
     t.start();
   });

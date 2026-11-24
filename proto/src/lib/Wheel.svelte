@@ -4,9 +4,10 @@
   let { progression, currentIndex = -1 }: { progression: Degree[]; currentIndex?: number } = $props();
 
   const CX = 150, CY = 150, R = 110;
-  // angles en degrés, 0 = droite, sens horaire (spec 6.3 : V à droite, IV à gauche)
+  // angles en degrés, 0 = droite, sens horaire en SVG (y vers le bas).
+  // spec 6.3 : V à droite, IV à gauche ; ii et vi en haut, iii et vii en bas.
   const ANGLES: Record<Degree, number | null> = {
-    I: null, V: 0, iii: 60, vii: 120, ii: 180, vi: 240, IV: 300,
+    I: null, V: 0, IV: 180, ii: 300, vi: 240, iii: 60, vii: 120,
   };
 
   function pos(d: Degree): { x: number; y: number } {
@@ -61,7 +62,7 @@
 </svg>
 
 <style>
-  .wheel { width: 100%; max-width: 300px; display: block; margin: 0 auto; }
+  .wheel { width: 100%; max-width: 240px; display: block; margin: 0 auto; }
   .node { transition: r 120ms ease; }
   line.active { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
 </style>

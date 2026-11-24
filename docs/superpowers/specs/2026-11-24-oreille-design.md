@@ -181,6 +181,22 @@ Les progressions des paliers D-F et les paramètres de chaque palier (degrés au
 ### 7.4 Prototype jetable (étape 0)
 Une seule page, palier E uniquement (4 accords, majeur, piano seul), roue de gravité et timeline, aucune persistance. Buts : vérifier le déblocage audio iOS, la latence, et surtout tester si la roue aide l'écoute. Le code est jeté ; les conclusions sont reportées dans ce document avant la construction.
 
+### 7.5 Conclusions du prototype
+
+**Partie technique (navigateur intégré, viewport 390 × 800, 2026-11-24)** :
+- Cycle complet vérifié : déblocage audio au tap, chargement du piano Salamander, cadence, progression, saisie, effacement, révélation, correction exacte (IV-I-V-vi en Si majeur, noms E / B / F# / G#m), roue et timeline synchronisées à la réécoute.
+- Aucune erreur console. L'écran tient en 390 px sans défilement.
+- **Durée d'une question trop longue** : cadence 4 mesures à 90 bpm (~11 s) + 1 s + progression 4 mesures à 70-100 bpm (~10-14 s), soit ~25 s avant de pouvoir répondre. Pour l'app : cadence raccourcie (I-V7-I sur 2 mesures, ou accords d'une blanche), tempo de progression ≥ 90 bpm, et option « accords tenus une blanche » aux premiers paliers.
+- tonal rend le degré vii en mineur via `Progression.fromRomanNumerals` : l'app construit les triades par empilement de degrés de la gamme (ou utilise `RomanNumeral` + qualité explicite).
+- Les tonalités en bémols produisent des noms comme `Cb3` (IV de Gb) : Tone.js les accepte, mais l'affichage devra simplifier les enharmonies (`Note.simplify`).
+- `Tone.getDraw()` (requestAnimationFrame) **jette silencieusement** les événements en retard de plus de 250 ms : jamais pour une promesse de fin de séquence, seulement pour l'animation. Corrigé dans le prototype (fin de séquence calée sur l'horloge audio + jeton de génération pour ignorer les callbacks d'une séquence annulée) ; à reprendre tel quel dans l'app.
+- Autres points iOS relevés en revue et corrigés dans le prototype : `navigator.audioSession.type = 'playback'` pour passer outre le commutateur silencieux ; `unlock()` aussi avant chaque réécoute (contexte suspendu après verrouillage) ; un échec de chargement des samples doit permettre de réessayer ; toujours un bouton de secours pendant la lecture.
+- Mise en page : en 360 × 640, masquer les boutons de degrés à la révélation et limiter la roue à 240 px pour que « Nouvelle question » reste visible sans défilement.
+
+**Partie pédagogique (essai au casque par l'utilisateur, 20 questions)** : _à compléter_ — score, utilité de la roue à la révélation (aide / neutre / distrait), longueur de la cadence, suffisance de 2 réécoutes.
+
+**Essai sur téléphone (iOS Safari, Android Chrome)** : _à compléter_ — premier tap audible, latence, temps de chargement des samples en 4G et wifi, double tap sur « Nouvelle question », taille des boutons à une main.
+
 ## 8. Décisions prises (et par qui)
 
 | Décision | Choix | Origine |

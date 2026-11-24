@@ -66,7 +66,11 @@
     currentIndex = -1;
   }
 
+  // préchargement : le premier tap n'attend que le déblocage audio
+  loadPiano().catch(() => { /* l'erreur sera affichée au premier tap */ });
+
   async function replay() {
+    await unlock();
     if (phase === 'answering') {
       if (replays >= MAX_REPLAYS) return;
       replays += 1;
@@ -138,19 +142,23 @@
     <p class="score">{score} / 4</p>
   {/if}
 
-  <section class="degrees">
-    {#each ANSWER_DEGREES as d}
-      <button class="degree" style:background={DEGREE_COLORS[d]} style:color={textColor(d)}
-              disabled={phase !== 'answering' || answer.length >= 4} onclick={() => pick(d)}>{d}</button>
-    {/each}
-  </section>
+  {#if phase !== 'revealed'}
+    <section class="degrees">
+      {#each ANSWER_DEGREES as d}
+        <button class="degree" style:background={DEGREE_COLORS[d]} style:color={textColor(d)}
+                disabled={phase !== 'answering' || answer.length >= 4} onclick={() => pick(d)}>{d}</button>
+      {/each}
+    </section>
+  {/if}
 
-  <section class="controls">
+  <section class="controls" class:two={phase === 'revealed'} class:one={phase === 'idle' || phase === 'loading' || phase === 'playing'}>
     {#if phase === 'revealed'}
       <button class="ctl" onclick={replay}>Réécouter</button>
       <button class="ctl primary" onclick={newQuestion}>Nouvelle question</button>
-    {:else if phase === 'idle'}
-      <button class="ctl primary wide" onclick={newQuestion}>Nouvelle question</button>
+    {:else if phase === 'idle' || phase === 'loading'}
+      <button class="ctl primary wide" disabled={phase === 'loading'} onclick={newQuestion}>Nouvelle question</button>
+    {:else if phase === 'playing'}
+      <button class="ctl wide" onclick={newQuestion}>Passer (nouvelle question)</button>
     {:else}
       <button class="ctl" disabled={phase !== 'answering' || answer.length === 0} onclick={erase}>Effacer</button>
       <button class="ctl" disabled={phase !== 'answering' || replays >= MAX_REPLAYS} onclick={replay}>
@@ -164,16 +172,16 @@
 <style>
   main {
     max-width: 480px; margin: 0 auto; padding: 12px 16px 24px;
-    min-height: 100dvh; display: flex; flex-direction: column; gap: 14px;
+    min-height: 100dvh; display: flex; flex-direction: column; gap: 10px;
   }
   header { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted); font-size: 14px; }
   .title { font-weight: 600; color: var(--fg); }
-  .viz { flex: 1; min-height: 200px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
-  .hint { text-align: center; color: var(--muted); font-size: 18px; margin: 0; }
+  .viz { flex: 1; min-height: 110px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .hint { text-align: center; color: var(--muted); font-size: 16px; margin: 0; }
   .error { color: #ff6b6b; text-align: center; font-size: 14px; }
   .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .slot {
-    height: 64px; border-radius: 12px; display: flex; flex-direction: column;
+    height: 56px; border-radius: 12px; display: flex; flex-direction: column;
     align-items: center; justify-content: center; border: 2px solid transparent;
   }
   .slot .deg { font-size: 22px; font-weight: 700; }
@@ -182,9 +190,11 @@
   .slot.ko { border-color: #ff3b3b; opacity: 0.75; }
   .score { text-align: center; margin: 0; font-size: 20px; font-weight: 600; }
   .degrees { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .degree { height: 60px; font-size: 24px; font-weight: 700; }
+  .degree { height: 54px; font-size: 24px; font-weight: 700; }
   .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .ctl { height: 56px; background: var(--panel); color: var(--fg); font-size: 16px; }
+  .controls.one { grid-template-columns: 1fr; }
+  .controls.two { grid-template-columns: 1fr 1fr; }
+  .ctl { height: 52px; background: var(--panel); color: var(--fg); font-size: 16px; }
   .ctl.primary { background: var(--fg); color: var(--bg); font-weight: 600; }
   .ctl.wide { grid-column: 1 / -1; }
 </style>
