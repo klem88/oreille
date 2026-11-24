@@ -119,4 +119,11 @@ describe('generate / itemsOf / grade', () => {
     expect(() => generate(D, seededRng(1), { itemKey: 'I' })).toThrow(/Item invalide/);
     expect(() => generate(C, seededRng(1), { itemKey: 'zz/1' })).toThrow(/Item invalide/);
   });
+
+  test('item périmé (syntaxe valide mais hors palier) : erreur', () => {
+    expect(() => generate(A, seededRng(1), { itemKey: 'major:V7' })).toThrow(/Item invalide/);
+    expect(() => generate(A, seededRng(1), { itemKey: 'minor:I' })).toThrow(/Item invalide/);
+    expect(() => generate(D, seededRng(1), { itemKey: 'V-IV' })).toThrow(/Item invalide/);
+    expect(() => generate(C, seededRng(1), { itemKey: 'I' })).toThrow(/Item invalide/);
+  });
 });

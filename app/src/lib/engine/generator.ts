@@ -52,7 +52,7 @@ export function itemsOf(palier: Palier): string[] {
 
 interface Parsed { mode: Mode; labels: string[]; expected: Answer }
 
-function parseItemDegree(palier: Palier, itemKey: string, text: string): Degree {
+function parseOrThrow(palier: Palier, itemKey: string, text: string): Degree {
   try {
     return parseDegree(text);
   } catch (e) {
@@ -66,22 +66,26 @@ function parseItem(palier: Palier, itemKey: string, rng: Rng): Parsed {
     if ((mode !== 'major' && mode !== 'minor') || !degree || rest.length) {
       throw new Error(`Item invalide « ${itemKey} » pour le palier ${palier.id}`);
     }
-    parseItemDegree(palier, itemKey, degree);
+    parseOrThrow(palier, itemKey, degree);
     return { mode: mode as Mode, labels: [degree], expected: { kind: 'degre', degree } };
   }
   const mode = pick(palier.modes, rng);
   if (palier.type === 'basse') {
-    const d = parseItemDegree(palier, itemKey, itemKey);
+    const d = parseOrThrow(palier, itemKey, itemKey);
     return { mode, labels: [itemKey], expected: { kind: 'basse', bass: d.bass } };
   }
   const labels = itemKey.split('-');
   if (labels.length !== 2) throw new Error(`Item invalide « ${itemKey} » pour le palier ${palier.id}`);
-  labels.forEach((l) => parseItemDegree(palier, itemKey, l));
+  labels.forEach((l) => parseOrThrow(palier, itemKey, l));
   return { mode, labels, expected: { kind: 'progression', degrees: labels } };
 }
 
 export function generate(palier: Palier, rng: Rng, opts: { itemKey?: string } = {}): Question {
-  const itemKey = opts.itemKey ?? pick(itemsOf(palier), rng);
+  const items = itemsOf(palier);
+  if (opts.itemKey !== undefined && !items.includes(opts.itemKey)) {
+    throw new Error(`Item invalide « ${opts.itemKey} » pour le palier ${palier.id} : hors du palier`);
+  }
+  const itemKey = opts.itemKey ?? pick(items, rng);
   const key = pick(KEYS, rng);
   const { mode, labels, expected } = parseItem(palier, itemKey, rng);
   const timbre = pick(palier.timbres, rng);
