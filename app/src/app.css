@@ -1,8 +1,29 @@
 :root {
-  font-family: system-ui, sans-serif;
-  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+  --bg: #121216;
+  --fg: #f2f2f5;
+  --muted: #8a8a96;
+  --panel: #1d1d24;
 }
 
-body {
+* { box-sizing: border-box; }
+
+html, body {
   margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+
+button {
+  font: inherit;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
+button:disabled { opacity: 0.4; cursor: default; }
