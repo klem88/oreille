@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Exercise from './lib/Exercise.svelte';
 </script>
 
-<h1>Oreille — prototype</h1>
+<Exercise />

@@ -1,0 +1,190 @@
+<script lang="ts">
+  import {
+    ANSWER_DEGREES, CADENCE, DEGREE_COLORS,
+    chordNotes, chordName, randomKey, randomProgression, type Degree,
+  } from './theory';
+  import { loadPiano, unlock, playSequence, stop } from './audio';
+  import Wheel from './Wheel.svelte';
+  import Timeline from './Timeline.svelte';
+
+  type Phase = 'idle' | 'loading' | 'playing' | 'answering' | 'revealed';
+
+  const MAX_REPLAYS = 2;
+  const CADENCE_BPM = 90;
+
+  let phase = $state<Phase>('idle');
+  let key = $state('C');
+  let progression = $state<Degree[]>([]);
+  let bpm = $state(80);
+  let answer = $state<Degree[]>([]);
+  let replays = $state(0);
+  let currentIndex = $state(-1);
+  let error = $state('');
+  let questionId = 0;
+
+  const canReveal = $derived(phase === 'answering' && answer.length === 4);
+  const score = $derived(progression.filter((d, i) => answer[i] === d).length);
+
+  function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+  async function newQuestion() {
+    const id = ++questionId;
+    stop();
+    error = '';
+    try {
+      await unlock();
+      if (phase === 'idle') phase = 'loading';
+      await loadPiano();
+    } catch (e) {
+      error = `Chargement du piano impossible : ${String(e)}`;
+      phase = 'idle';
+      return;
+    }
+    if (id !== questionId) return;
+    key = randomKey();
+    progression = randomProgression();
+    bpm = 70 + Math.floor(Math.random() * 31);
+    answer = [];
+    replays = 0;
+    currentIndex = -1;
+    phase = 'playing';
+    await playSequence(CADENCE.map((d) => chordNotes(key, d)), CADENCE_BPM);
+    if (id !== questionId) return;
+    await sleep(1000);
+    if (id !== questionId) return;
+    await playProgression();
+    if (id !== questionId) return;
+    phase = 'answering';
+  }
+
+  async function playProgression() {
+    await playSequence(
+      progression.map((d) => chordNotes(key, d)),
+      bpm,
+      (i) => { currentIndex = i; },
+    );
+    currentIndex = -1;
+  }
+
+  async function replay() {
+    if (phase === 'answering') {
+      if (replays >= MAX_REPLAYS) return;
+      replays += 1;
+      const prev = phase;
+      phase = 'playing';
+      await playProgression();
+      phase = prev;
+    } else if (phase === 'revealed') {
+      await playProgression();
+    }
+  }
+
+  function pick(d: Degree) {
+    if (phase !== 'answering' || answer.length >= 4) return;
+    answer = [...answer, d];
+  }
+
+  function erase() {
+    if (phase !== 'answering') return;
+    answer = answer.slice(0, -1);
+  }
+
+  function reveal() {
+    if (!canReveal) return;
+    phase = 'revealed';
+  }
+
+  function textColor(d: Degree) { return d === 'iii' ? '#111' : '#fff'; }
+</script>
+
+<main>
+  <header>
+    <span class="title">Oreille · palier E</span>
+    {#if phase === 'revealed'}<span class="key">{key} majeur · {bpm} bpm</span>{/if}
+  </header>
+
+  <section class="viz">
+    {#if phase === 'revealed'}
+      <Wheel {progression} {currentIndex} />
+      <Timeline {progression} {currentIndex} />
+    {:else if phase === 'playing'}
+      <p class="hint">Écoute…</p>
+    {:else if phase === 'loading'}
+      <p class="hint">Chargement du piano…</p>
+    {:else if phase === 'answering'}
+      <p class="hint">Quels degrés as-tu entendus ?</p>
+    {:else}
+      <p class="hint">Casque conseillé. Une cadence, puis quatre accords.</p>
+    {/if}
+    {#if error}<p class="error">{error}</p>{/if}
+  </section>
+
+  <section class="slots">
+    {#each [0, 1, 2, 3] as i}
+      {@const a = answer[i]}
+      {@const ok = phase === 'revealed' ? a === progression[i] : null}
+      <div class="slot" class:ok={ok === true} class:ko={ok === false}
+           style:background={a ? DEGREE_COLORS[a] : 'var(--panel)'}
+           style:color={a ? textColor(a) : 'var(--muted)'}>
+        <span class="deg">{a ?? '·'}</span>
+        {#if phase === 'revealed'}
+          <span class="truth">{ok ? '✓' : '✗ ' + progression[i]} · {chordName(key, progression[i])}</span>
+        {/if}
+      </div>
+    {/each}
+  </section>
+
+  {#if phase === 'revealed'}
+    <p class="score">{score} / 4</p>
+  {/if}
+
+  <section class="degrees">
+    {#each ANSWER_DEGREES as d}
+      <button class="degree" style:background={DEGREE_COLORS[d]} style:color={textColor(d)}
+              disabled={phase !== 'answering' || answer.length >= 4} onclick={() => pick(d)}>{d}</button>
+    {/each}
+  </section>
+
+  <section class="controls">
+    {#if phase === 'revealed'}
+      <button class="ctl" onclick={replay}>Réécouter</button>
+      <button class="ctl primary" onclick={newQuestion}>Nouvelle question</button>
+    {:else if phase === 'idle'}
+      <button class="ctl primary wide" onclick={newQuestion}>Nouvelle question</button>
+    {:else}
+      <button class="ctl" disabled={phase !== 'answering' || answer.length === 0} onclick={erase}>Effacer</button>
+      <button class="ctl" disabled={phase !== 'answering' || replays >= MAX_REPLAYS} onclick={replay}>
+        Réécouter ({MAX_REPLAYS - replays})
+      </button>
+      <button class="ctl primary" disabled={!canReveal} onclick={reveal}>Révéler</button>
+    {/if}
+  </section>
+</main>
+
+<style>
+  main {
+    max-width: 480px; margin: 0 auto; padding: 12px 16px 24px;
+    min-height: 100dvh; display: flex; flex-direction: column; gap: 14px;
+  }
+  header { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted); font-size: 14px; }
+  .title { font-weight: 600; color: var(--fg); }
+  .viz { flex: 1; min-height: 200px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .hint { text-align: center; color: var(--muted); font-size: 18px; margin: 0; }
+  .error { color: #ff6b6b; text-align: center; font-size: 14px; }
+  .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .slot {
+    height: 64px; border-radius: 12px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; border: 2px solid transparent;
+  }
+  .slot .deg { font-size: 22px; font-weight: 700; }
+  .slot .truth { font-size: 11px; opacity: 0.9; white-space: nowrap; }
+  .slot.ok { border-color: #fff; }
+  .slot.ko { border-color: #ff3b3b; opacity: 0.75; }
+  .score { text-align: center; margin: 0; font-size: 20px; font-weight: 600; }
+  .degrees { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .degree { height: 60px; font-size: 24px; font-weight: 700; }
+  .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .ctl { height: 56px; background: var(--panel); color: var(--fg); font-size: 16px; }
+  .ctl.primary { background: var(--fg); color: var(--bg); font-weight: 600; }
+  .ctl.wide { grid-column: 1 / -1; }
+</style>
