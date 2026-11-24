@@ -90,15 +90,33 @@ describe('generate / itemsOf / grade', () => {
       expect(q.bpm).toBeGreaterThanOrEqual(84);
       expect(q.bpm).toBeLessThanOrEqual(112);
       const lastCad = q.cadence[q.cadence.length - 1][0];
-      expect(Math.abs(Note.midi(q.stimulus[0].bass)! - Note.midi(lastCad)!)).toBeLessThanOrEqual(7);
+      const sb = Note.midi(q.stimulus[0].bass)!;
+      expect(sb).toBeGreaterThanOrEqual(40);
+      expect(sb).toBeLessThanOrEqual(57);
+      expect(Math.abs(sb - Note.midi(lastCad)!)).toBeLessThanOrEqual(11);
     }
   });
 
   test('mineur : cadenceMineur utilisée', () => {
-    const q = generate(B, seededRng(7), { itemKey: 'minor:bIII' });
-    expect(q.mode).toBe('minor');
-    expect(q.cadence).toHaveLength(B.cadenceMineur.length);
-    const qM = generate(B, seededRng(7), { itemKey: 'major:IV' });
-    expect(qM.cadence).toHaveLength(B.cadence.length);
+    expect(B.cadenceMineur).not.toEqual(B.cadence);
+    for (let seed = 0; seed < 12; seed++) {
+      const q = generate(B, seededRng(seed), { itemKey: 'minor:bIII' });
+      expect(q.mode).toBe('minor');
+      expect(q.cadence).toHaveLength(B.cadenceMineur.length);
+      const pcs = q.cadence[0].map((n) => Note.chroma(n));
+      const third = (Note.chroma(q.key)! + 3) % 12;
+      const major3 = (Note.chroma(q.key)! + 4) % 12;
+      expect(pcs).toContain(third); // i : tierce mineure
+      expect(pcs).not.toContain(major3);
+      const qM = generate(B, seededRng(seed), { itemKey: 'major:IV' });
+      expect(qM.cadence[0].map((n) => Note.chroma(n))).toContain((Note.chroma(qM.key)! + 4) % 12);
+    }
+  });
+
+  test('item invalide : erreur claire', () => {
+    expect(() => generate(A, seededRng(1), { itemKey: 'dorian:IV' })).toThrow(/Item invalide/);
+    expect(() => generate(A, seededRng(1), { itemKey: 'major:XX' })).toThrow(/Item invalide/);
+    expect(() => generate(D, seededRng(1), { itemKey: 'I' })).toThrow(/Item invalide/);
+    expect(() => generate(C, seededRng(1), { itemKey: 'zz/1' })).toThrow(/Item invalide/);
   });
 });

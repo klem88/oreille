@@ -9,7 +9,6 @@ export type { Answer, Question };
 
 const BPM_MIN = 84;
 const BPM_MAX = 112;
-const STIMULUS_BASS_RANGE: [number, number] = [34, 63];
 const UPPER_LOW_MIN = 55;
 const UPPER_LOW_MAX = 62;
 
@@ -53,17 +52,31 @@ export function itemsOf(palier: Palier): string[] {
 
 interface Parsed { mode: Mode; labels: string[]; expected: Answer }
 
+function parseItemDegree(palier: Palier, itemKey: string, text: string): Degree {
+  try {
+    return parseDegree(text);
+  } catch (e) {
+    throw new Error(`Item invalide « ${itemKey} » pour le palier ${palier.id} : ${(e as Error).message}`);
+  }
+}
+
 function parseItem(palier: Palier, itemKey: string, rng: Rng): Parsed {
   if (palier.type === 'degre') {
-    const [mode, degree] = itemKey.split(':') as [Mode, string];
-    return { mode, labels: [degree], expected: { kind: 'degre', degree } };
+    const [mode, degree, ...rest] = itemKey.split(':');
+    if ((mode !== 'major' && mode !== 'minor') || !degree || rest.length) {
+      throw new Error(`Item invalide « ${itemKey} » pour le palier ${palier.id}`);
+    }
+    parseItemDegree(palier, itemKey, degree);
+    return { mode: mode as Mode, labels: [degree], expected: { kind: 'degre', degree } };
   }
   const mode = pick(palier.modes, rng);
   if (palier.type === 'basse') {
-    const d = parseDegree(itemKey);
+    const d = parseItemDegree(palier, itemKey, itemKey);
     return { mode, labels: [itemKey], expected: { kind: 'basse', bass: d.bass } };
   }
   const labels = itemKey.split('-');
+  if (labels.length !== 2) throw new Error(`Item invalide « ${itemKey} » pour le palier ${palier.id}`);
+  labels.forEach((l) => parseItemDegree(palier, itemKey, l));
   return { mode, labels, expected: { kind: 'progression', degrees: labels } };
 }
 
@@ -79,8 +92,6 @@ export function generate(palier: Palier, rng: Rng, opts: { itemKey?: string } = 
   const degrees = labels.map(parseDegree);
   const stimulus = voiceChords(key, mode, degrees, rng, {
     upperLow,
-    // plage élargie : la basse la plus proche de la cadence reste à ≤ 6 demi-tons même en bord de plage
-    bassRange: STIMULUS_BASS_RANGE,
     prev: cadenceVoicings[cadenceVoicings.length - 1],
   });
   const id = `${palier.id}-${Math.floor(rng() * 0x100000000).toString(36)}`;
@@ -100,27 +111,25 @@ export function generate(palier: Palier, rng: Rng, opts: { itemKey?: string } = 
   };
 }
 
-function sameChord(a: string, b: string): boolean {
-  const x: Degree = parseDegree(a);
-  const y: Degree = parseDegree(b);
-  return baseStep(x) === baseStep(y) && x.accidental === y.accidental && !x.secondaryOf === !y.secondaryOf;
-}
-
-function safeSame(a: string, b: string): boolean {
+/** `expected` doit être valide (sinon exception) ; une réponse non parsable est simplement fausse. */
+function sameChord(expected: string, answer: string): boolean {
+  const x: Degree = parseDegree(expected);
+  let y: Degree;
   try {
-    return sameChord(a, b);
+    y = parseDegree(answer);
   } catch {
     return false;
   }
+  return baseStep(x) === baseStep(y) && x.accidental === y.accidental && !x.secondaryOf === !y.secondaryOf;
 }
 
 export function grade(q: Question, a: Answer): { correct: boolean; perChord?: boolean[] } {
   const e = q.expected;
   if (e.kind !== a.kind) return { correct: false };
-  if (e.kind === 'degre' && a.kind === 'degre') return { correct: safeSame(e.degree, a.degree) };
+  if (e.kind === 'degre' && a.kind === 'degre') return { correct: sameChord(e.degree, a.degree) };
   if (e.kind === 'basse' && a.kind === 'basse') return { correct: e.bass === a.bass };
   if (e.kind === 'progression' && a.kind === 'progression') {
-    const perChord = e.degrees.map((d, i) => a.degrees[i] !== undefined && safeSame(d, a.degrees[i]));
+    const perChord = e.degrees.map((d, i) => a.degrees[i] !== undefined && sameChord(d, a.degrees[i]));
     return { correct: e.degrees.length === a.degrees.length && perChord.every(Boolean), perChord };
   }
   return { correct: false };
