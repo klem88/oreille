@@ -1,7 +1,7 @@
 # Oreille — cahier de conception
 
 Date : 2026-11-24
-Statut : approuvé le 2026-11-24
+Statut : approuvé le 2026-11-24, complété après prototype (sections 5.7, 6.3 à 6.6, 7.2 bis, 7.5)
 
 ## 1. Intention
 
@@ -96,6 +96,12 @@ L'isolation des voix (principe 5.1.3) est une **option de rendu** de chaque ques
 - Seules les 16 questions du palier en cours comptent pour le seuil de 85 %. Les rappels mettent à jour leurs propres boîtes.
 - Le déblocage exige **deux séries consécutives** au-dessus du seuil ; une série ratée remet le compteur à zéro.
 - Les valeurs 20 / 16 / 85 % / 2 sont des paramètres de `content/paliers`.
+
+### 5.7 Conditions issues du prototype (validées le 2026-11-24)
+1. **Démarrer bas.** Le parcours commence au palier A quel que soit le niveau théorique. Les séries sont courtes : 8 questions par défaut (6 du palier + 2 rappels), paramétrable. Un palier se valide par deux séries consécutives à 85 % **ou** par une suite de 6 réussites d'affilée dans le palier.
+2. **Progressions générées, pas listées.** À partir du palier D, les progressions sont tirées par un générateur à règles fonctionnelles (tonique → n'importe où ; sous-dominante → dominante ou tonique ; dominante → tonique, déceptif vers vi autorisé), de longueur variable (2 à 6 accords), avec un poids plus fort sur les patterns pop courants. La liste fixe des patterns du palier E ne sert plus que de « familles » nommées à la révélation (« c'est le I-V-vi-IV »).
+3. **Le test de transfert est la mesure principale.** Toutes les deux semaines, l'app propose un « relevé réel » : une chanson du répertoire H dont l'utilisateur n'a pas encore vu la grille, à écouter sur l'enregistrement (lien externe), grille à saisir, score contre la référence. L'historique des relevés réels est le tableau de bord principal, avant les scores de paliers. Si cette courbe ne monte pas, c'est la méthode qu'il faut changer, pas l'utilisateur.
+4. **Le chant est une étape.** Aux paliers C, D et E, avant de répondre, l'écran demande de chanter la basse (puis, plus tard, la voix supérieure), avec un bouton « j'ai chanté » qui débloque la réponse et un bouton « rejouer la basse seule » pour se vérifier. Sur l'honneur, jamais noté.
 
 ## 6. Visualisation
 
@@ -215,7 +221,8 @@ Une seule page, palier E uniquement (4 accords, majeur, piano seul), roue de gra
 - La visualisation est jugée « pas trop mal ».
 - Vingt questions d'affilée, c'est trop long quand on échoue : le palier E est trop dur comme point d'entrée. **Pour l'app : séries courtes (5 à 10), démarrage au palier A ou D même pour un musicien formé, et un mode « jusqu'à 3 réussites de suite » plutôt qu'un nombre fixe.**
 - Deuxième retour : il manque la **fonction** des accords sur la roue, et l'utilisateur a remarqué que la basse du V tombe tantôt au-dessus, tantôt en dessous de celle du I (voicing à octave fixe). → Ajouté au prototype : halos et légende de fonction, annonce « degré · nom · fonction · rôle » de l'accord tapé, conduite de voix (7.2 bis), ligne de basse (6.4) et clavier (6.5), tous tapables.
-- Reste à mesurer : score sur une série, utilité de la roue (aide / neutre / distrait), longueur de la cadence, suffisance de 2 réécoutes, et si le clavier aide ou ramène au calcul.
+- Troisième retour : « difficile mais bien ». Verdict : la roue, la ligne de basse et le clavier sont **conservés** pour l'app, affichés après la réponse seulement ; la difficulté ressentie est attribuée à l'entrée directe au palier E. Les quatre conditions de 5.7 en découlent.
+- Reste à mesurer dans l'app, sur la durée : courbe des relevés réels (5.7.3), et si le clavier aide ou ramène au calcul.
 
 **Essai sur téléphone (iOS Safari, Android Chrome)** : _à compléter_ — premier tap audible, latence, temps de chargement des samples en 4G et wifi, double tap sur « Nouvelle question », taille des boutons à une main.
 
