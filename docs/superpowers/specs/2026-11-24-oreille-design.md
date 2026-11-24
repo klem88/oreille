@@ -193,7 +193,12 @@ Une seule page, palier E uniquement (4 accords, majeur, piano seul), roue de gra
 - Autres points iOS relevés en revue et corrigés dans le prototype : `navigator.audioSession.type = 'playback'` pour passer outre le commutateur silencieux ; `unlock()` aussi avant chaque réécoute (contexte suspendu après verrouillage) ; un échec de chargement des samples doit permettre de réessayer ; toujours un bouton de secours pendant la lecture.
 - Mise en page : en 360 × 640, masquer les boutons de degrés à la révélation et limiter la roue à 240 px pour que « Nouvelle question » reste visible sans défilement.
 
-**Partie pédagogique (essai au casque par l'utilisateur, 20 questions)** : _à compléter_ — score, utilité de la roue à la révélation (aide / neutre / distrait), longueur de la cadence, suffisance de 2 réécoutes.
+**Partie pédagogique, premiers retours de l'utilisateur (2026-11-24, sur téléphone)** :
+- Il manquait des explications : on ne comprend pas spontanément que la première progression est la cadence d'ancrage et la seconde celle à identifier. → Corrigé dans le prototype : trois étapes nommées (1. Ancrage avec la cadence affichée et animée, 2. Écoute avec quatre « ? », 3. Réponds) et un texte d'accueil. **Pour l'app : chaque palier doit avoir une page d'explication d'une phrase, et l'étape en cours doit être nommée à l'écran.**
+- Attente forte de pouvoir **taper un élément pour réentendre son accord** (case de réponse, bloc de timeline, nœud de la roue) afin de l'ancrer. → Ajouté dans le prototype après révélation. **Pour l'app : règle générale, tout accord affiché est réécoutable au tap.**
+- La visualisation est jugée « pas trop mal ».
+- Vingt questions d'affilée, c'est trop long quand on échoue : le palier E est trop dur comme point d'entrée. **Pour l'app : séries courtes (5 à 10), démarrage au palier A ou D même pour un musicien formé, et un mode « jusqu'à 3 réussites de suite » plutôt qu'un nombre fixe.**
+- Reste à mesurer : score sur une série, utilité de la roue (aide / neutre / distrait), longueur de la cadence, suffisance de 2 réécoutes.
 
 **Essai sur téléphone (iOS Safari, Android Chrome)** : _à compléter_ — premier tap audible, latence, temps de chargement des samples en 4G et wifi, double tap sur « Nouvelle question », taille des boutons à une main.
 

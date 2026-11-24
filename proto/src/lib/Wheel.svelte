@@ -1,7 +1,11 @@
 <script lang="ts">
   import { DEGREE_COLORS, type Degree } from './theory';
 
-  let { progression, currentIndex = -1 }: { progression: Degree[]; currentIndex?: number } = $props();
+  let {
+    progression,
+    currentIndex = -1,
+    onTap,
+  }: { progression: Degree[]; currentIndex?: number; onTap?: (degree: Degree) => void } = $props();
 
   const CX = 150, CY = 150, R = 110;
   // angles en degrés, 0 = droite, sens horaire en SVG (y vers le bas).
@@ -51,18 +55,23 @@
     {@const r = deg === 'I' ? 30 : 22}
     {@const isCurrent = currentIndex >= 0 && progression[currentIndex] === deg}
     {@const wasPlayed = played.has(deg)}
-    {#if wasPlayed}
-      <circle cx={p.x} cy={p.y} r={r + 8} fill={DEGREE_COLORS[deg]} opacity="0.25" />
-    {/if}
-    <circle cx={p.x} cy={p.y} r={isCurrent ? r + 4 : r} fill={DEGREE_COLORS[deg]}
-            stroke={isCurrent ? '#fff' : 'none'} stroke-width="3" class="node" />
-    <text x={p.x} y={p.y} text-anchor="middle" dominant-baseline="central"
-          fill={deg === 'iii' ? '#111' : '#fff'} font-weight="700" font-size={deg === 'I' ? 22 : 16}>{deg}</text>
+    <g class="node-group" class:tappable={!!onTap} role="button" tabindex="0"
+       onclick={() => onTap?.(deg)} onkeydown={(e) => { if (e.key === 'Enter') onTap?.(deg); }}>
+      {#if wasPlayed}
+        <circle cx={p.x} cy={p.y} r={r + 8} fill={DEGREE_COLORS[deg]} opacity="0.25" />
+      {/if}
+      <circle cx={p.x} cy={p.y} r={isCurrent ? r + 4 : r} fill={DEGREE_COLORS[deg]}
+              stroke={isCurrent ? '#fff' : 'none'} stroke-width="3" class="node" />
+      <text x={p.x} y={p.y} text-anchor="middle" dominant-baseline="central"
+            fill={deg === 'iii' ? '#111' : '#fff'} font-weight="700" font-size={deg === 'I' ? 22 : 16}>{deg}</text>
+    </g>
   {/each}
 </svg>
 
 <style>
   .wheel { width: 100%; max-width: 240px; display: block; margin: 0 auto; }
   .node { transition: r 120ms ease; }
+  .node-group.tappable { cursor: pointer; }
+  .node-group:focus { outline: none; }
   line.active { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
 </style>

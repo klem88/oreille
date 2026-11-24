@@ -83,3 +83,10 @@ export function playSequence(
     t.start();
   });
 }
+
+/** Joue un seul accord (réécoute à la demande), sans toucher au Transport. */
+export function playChord(notes: string[], duration = '2n'): void {
+  if (!sampler) return;
+  sampler.releaseAll();
+  sampler.triggerAttackRelease(notes, duration);
+}

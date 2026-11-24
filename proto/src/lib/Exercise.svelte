@@ -3,7 +3,7 @@
     ANSWER_DEGREES, CADENCE, DEGREE_COLORS,
     chordNotes, chordName, randomKey, randomProgression, type Degree,
   } from './theory';
-  import { loadPiano, unlock, playSequence, stop } from './audio';
+  import { loadPiano, unlock, playSequence, playChord, stop } from './audio';
   import Wheel from './Wheel.svelte';
   import Timeline from './Timeline.svelte';
 
@@ -19,6 +19,8 @@
   let answer = $state<Degree[]>([]);
   let replays = $state(0);
   let currentIndex = $state(-1);
+  let cadenceIndex = $state(-1);
+  let stage = $state<'cadence' | 'gap' | 'progression'>('cadence');
   let error = $state('');
   let questionId = 0;
 
@@ -48,10 +50,14 @@
     replays = 0;
     currentIndex = -1;
     phase = 'playing';
-    await playSequence(CADENCE.map((d) => chordNotes(key, d)), CADENCE_BPM);
+    stage = 'cadence';
+    await playSequence(CADENCE.map((d) => chordNotes(key, d)), CADENCE_BPM, (i) => { cadenceIndex = i; });
+    cadenceIndex = -1;
     if (id !== questionId) return;
+    stage = 'gap';
     await sleep(1000);
     if (id !== questionId) return;
+    stage = 'progression';
     await playProgression();
     if (id !== questionId) return;
     phase = 'answering';
@@ -76,6 +82,7 @@
       replays += 1;
       const prev = phase;
       phase = 'playing';
+      stage = 'progression';
       await playProgression();
       phase = prev;
     } else if (phase === 'revealed') {
@@ -99,6 +106,13 @@
   }
 
   function textColor(d: Degree) { return d === 'iii' ? '#111' : '#fff'; }
+
+  /** Réécoute d'un seul accord (après révélation), pour l'ancrer. */
+  async function hear(d: Degree) {
+    if (phase !== 'revealed') return;
+    await unlock();
+    playChord(chordNotes(key, d));
+  }
 </script>
 
 <main>
@@ -109,16 +123,28 @@
 
   <section class="viz">
     {#if phase === 'revealed'}
-      <Wheel {progression} {currentIndex} />
-      <Timeline {progression} {currentIndex} />
+      <p class="hint small">Tape un accord (case, bloc ou roue) pour le réentendre.</p>
+      <Wheel {progression} {currentIndex} onTap={hear} />
+      <Timeline {progression} {currentIndex} label="La progression, en {key} majeur" onTap={(i) => hear(progression[i])} />
+    {:else if phase === 'playing' && stage === 'cadence'}
+      <p class="hint"><strong>1. Ancrage.</strong> Cadence I – IV – V – I : elle installe la tonalité. Le dernier accord est la « maison » (le I).</p>
+      <Timeline progression={CADENCE} currentIndex={cadenceIndex} />
+    {:else if phase === 'playing' && stage === 'gap'}
+      <p class="hint">Tonalité posée. Voici maintenant la progression à identifier…</p>
     {:else if phase === 'playing'}
-      <p class="hint">Écoute…</p>
+      <p class="hint"><strong>2. Écoute.</strong> Quatre accords, un par mesure. Situe chacun par rapport à la maison.</p>
+      <div class="unknown">
+        {#each [0, 1, 2, 3] as i}
+          <div class="block" class:current={i === currentIndex}>?</div>
+        {/each}
+      </div>
     {:else if phase === 'loading'}
       <p class="hint">Chargement du piano…</p>
     {:else if phase === 'answering'}
-      <p class="hint">Quels degrés as-tu entendus ?</p>
+      <p class="hint"><strong>3. Réponds.</strong> Quels degrés as-tu entendus, dans l'ordre ? Astuce : suis la basse.</p>
     {:else}
-      <p class="hint">Casque conseillé. Une cadence, puis quatre accords.</p>
+      <p class="hint">Casque conseillé.</p>
+      <p class="hint small">Chaque question se déroule en trois temps : une cadence I – IV – V – I qui installe la tonalité (l'ancrage), puis quatre accords à identifier par leur degré, puis ta réponse. À la révélation, tu pourras réentendre chaque accord.</p>
     {/if}
     {#if error}<p class="error">{error}</p>{/if}
   </section>
@@ -127,14 +153,15 @@
     {#each [0, 1, 2, 3] as i}
       {@const a = answer[i]}
       {@const ok = phase === 'revealed' ? a === progression[i] : null}
-      <div class="slot" class:ok={ok === true} class:ko={ok === false}
+      <button class="slot" class:ok={ok === true} class:ko={ok === false}
            style:background={a ? DEGREE_COLORS[a] : 'var(--panel)'}
-           style:color={a ? textColor(a) : 'var(--muted)'}>
+           style:color={a ? textColor(a) : 'var(--muted)'}
+           disabled={phase !== 'revealed'} onclick={() => hear(progression[i])}>
         <span class="deg">{a ?? '·'}</span>
         {#if phase === 'revealed'}
           <span class="truth">{ok ? '✓' : '✗ ' + progression[i]} · {chordName(key, progression[i])}</span>
         {/if}
-      </div>
+      </button>
     {/each}
   </section>
 
@@ -177,13 +204,24 @@
   header { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted); font-size: 14px; }
   .title { font-weight: 600; color: var(--fg); }
   .viz { flex: 1; min-height: 110px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
-  .hint { text-align: center; color: var(--muted); font-size: 16px; margin: 0; }
+  .hint { text-align: center; color: var(--muted); font-size: 16px; margin: 0; line-height: 1.35; }
+  .hint strong { color: var(--fg); }
+  .hint.small { font-size: 13px; }
   .error { color: #ff6b6b; text-align: center; font-size: 14px; }
+  .unknown { display: flex; gap: 6px; height: 48px; padding-top: 4px; }
+  .unknown .block {
+    flex: 1; display: grid; place-items: center; border-radius: 8px;
+    background: var(--panel); color: var(--muted); font-weight: 700; font-size: 18px;
+    border: 2px solid transparent; transition: transform 100ms ease, border-color 100ms ease;
+  }
+  .unknown .block.current { transform: translateY(-4px); border-color: #fff; color: var(--fg); }
   .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .slot {
     height: 56px; border-radius: 12px; display: flex; flex-direction: column;
     align-items: center; justify-content: center; border: 2px solid transparent;
+    padding: 0;
   }
+  .slot:disabled { opacity: 1; cursor: default; }
   .slot .deg { font-size: 22px; font-weight: 700; }
   .slot .truth { font-size: 11px; opacity: 0.9; white-space: nowrap; }
   .slot.ok { border-color: #fff; }
