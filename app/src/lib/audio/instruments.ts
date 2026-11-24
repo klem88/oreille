@@ -15,6 +15,9 @@ export interface Voice {
   stop(): void;
 }
 
+/** Fondu de coupure de stop() (s). */
+const STOP_RELEASE = 0.08;
+
 const SALAMANDER = 'https://tonejs.github.io/audio/salamander/';
 const GUITAR = 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-acoustic/';
 
@@ -63,7 +66,18 @@ function loadSampler(options: ConstructorParameters<typeof Tone.Sampler>[0]): Pr
     const s: Tone.Sampler = new Tone.Sampler({
       ...options,
       onload: () =>
-        resolve(makeVoice((n, t) => { s.triggerAttack(n, t); }, (t) => { s.releaseAll(t); })),
+        resolve(
+          makeVoice(
+            (n, t) => { s.triggerAttack(n, t); },
+            (t) => { s.releaseAll(t); },
+            () => {
+              // stop : fondu court (le relâchement de 1 s ne sert qu'au legato)
+              const r = s.release;
+              s.release = STOP_RELEASE;
+              try { s.releaseAll(Tone.immediate()); } finally { s.release = r; }
+            },
+          ),
+        ),
       onerror: (e) => { s.dispose(); reject(e); },
     }).toDestination();
   });
@@ -103,9 +117,8 @@ const makers: Record<Timbre, () => Promise<Voice>> = {
     synth.volume.value = -14;
     return makeVoice((n, t) => { synth.triggerAttack(n, t); }, (t) => { synth.releaseAll(t); }, () => {
       // stop : relâchement court (la queue de 1,2 s ne convient qu'au legato entre accords)
-      synth.set({ envelope: { release: 0.08 } });
-      synth.releaseAll(Tone.immediate());
-      synth.set({ envelope: { release: 1.2 } });
+      synth.set({ envelope: { release: STOP_RELEASE } });
+      try { synth.releaseAll(Tone.immediate()); } finally { synth.set({ envelope: { release: 1.2 } }); }
     });
   },
 };
