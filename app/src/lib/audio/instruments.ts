@@ -15,7 +15,12 @@ export interface Voice {
   stop(): void;
 }
 
-/** Fondu de coupure de stop() (s). */
+/**
+ * Relâchement des samplers (s). Il est figé à l'attaque dans chaque source (fadeOut),
+ * donc le même pour le legato entre accords et pour stop().
+ */
+const SAMPLER_RELEASE = 0.25;
+/** Relâchement de la nappe au stop() (s) ; PolySynth le lit au moment du relâchement. */
 const STOP_RELEASE = 0.08;
 
 const SALAMANDER = 'https://tonejs.github.io/audio/salamander/';
@@ -66,18 +71,7 @@ function loadSampler(options: ConstructorParameters<typeof Tone.Sampler>[0]): Pr
     const s: Tone.Sampler = new Tone.Sampler({
       ...options,
       onload: () =>
-        resolve(
-          makeVoice(
-            (n, t) => { s.triggerAttack(n, t); },
-            (t) => { s.releaseAll(t); },
-            () => {
-              // stop : fondu court (le relâchement de 1 s ne sert qu'au legato)
-              const r = s.release;
-              s.release = STOP_RELEASE;
-              try { s.releaseAll(Tone.immediate()); } finally { s.release = r; }
-            },
-          ),
-        ),
+        resolve(makeVoice((n, t) => { s.triggerAttack(n, t); }, (t) => { s.releaseAll(t); })),
       onerror: (e) => { s.dispose(); reject(e); },
     }).toDestination();
   });
@@ -96,7 +90,7 @@ const makers: Record<Timbre, () => Promise<Voice>> = {
         A6: 'A6.mp3', C7: 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
         A7: 'A7.mp3', C8: 'C8.mp3',
       },
-      release: 1,
+      release: SAMPLER_RELEASE,
       baseUrl: SALAMANDER,
     }),
   guitare: () =>
@@ -105,7 +99,7 @@ const makers: Record<Timbre, () => Promise<Voice>> = {
         D2: 'D2.mp3', A2: 'A2.mp3', D3: 'D3.mp3',
         A3: 'A3.mp3', D4: 'D4.mp3', A4: 'A4.mp3',
       },
-      release: 1,
+      release: SAMPLER_RELEASE,
       baseUrl: GUITAR,
     }),
   nappe: async () => {
