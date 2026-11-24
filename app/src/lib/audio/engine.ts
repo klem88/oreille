@@ -42,7 +42,7 @@ export function playSequence(
   beatsPerChord = 4,
 ): Promise<void> {
   const voice = getVoice(timbre);
-  if (!voice) throw new Error(`timbre non chargé : ${timbre}`);
+  if (!voice) return Promise.reject(new Error(`timbre non chargé : ${timbre}`));
   stop();
   const gen = generation;
   const t = Tone.getTransport();
@@ -59,7 +59,7 @@ export function playSequence(
     });
     t.schedule((time) => {
       // fin de séquence : basée sur l'horloge audio, pas sur requestAnimationFrame
-      const delay = Math.max(0, (time - Tone.now()) * 1000);
+      const delay = Math.max(0, (time - Tone.immediate()) * 1000);
       endTimer = setTimeout(() => {
         if (gen !== generation) return;
         endTimer = null;

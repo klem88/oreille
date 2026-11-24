@@ -6,25 +6,57 @@ export interface Voice {
   /** Joue des notes ; duration en secondes ou notation Tone, time optionnel (horloge audio). */
   play(notes: string | string[], duration: Tone.Unit.Time, time?: number): void;
   releaseAll(): void;
+  /** Gain de sortie (coupure ; exposé pour vérification). */
+  output: Tone.Gain;
 }
 
 const SALAMANDER = 'https://tonejs.github.io/audio/salamander/';
 const GUITAR = 'https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-acoustic/';
 
-function samplerVoice(s: Tone.Sampler): Voice {
+const FADE = 0.05; // fondu de coupure (s)
+const GAP = 0.01; // marge avant de rouvrir le gain
+
+/**
+ * Enveloppe une source dans un Gain dédié. Sampler.triggerAttackRelease programme déjà
+ * son relâchement : releaseAll() natif ne trouve plus rien à couper. On coupe donc au
+ * niveau du gain (fondu rapide), puis on le rouvre avant la note suivante.
+ */
+function gatedVoice(
+  output: Tone.Gain,
+  trigger: (notes: string | string[], duration: Tone.Unit.Time, time: number) => void,
+  release: () => void,
+): Voice {
+  let reopenAt = 0;
   return {
-    play: (notes, duration, time) => { s.triggerAttackRelease(notes, duration, time); },
-    releaseAll: () => { s.releaseAll(); },
+    output,
+    play(notes, duration, time) {
+      const t = Math.max(time ?? Tone.now(), reopenAt);
+      trigger(notes, duration, t);
+    },
+    releaseAll() {
+      const now = Tone.immediate();
+      const g = output.gain;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(0, now + FADE);
+      reopenAt = now + FADE + GAP;
+      g.setValueAtTime(1, reopenAt);
+      release();
+    },
   };
 }
 
 function loadSampler(options: ConstructorParameters<typeof Tone.Sampler>[0]): Promise<Voice> {
   return new Promise<Voice>((resolve, reject) => {
+    const out = new Tone.Gain(1).toDestination();
     const s: Tone.Sampler = new Tone.Sampler({
       ...options,
-      onload: () => resolve(samplerVoice(s)),
-      onerror: (e) => { s.dispose(); reject(e); },
-    }).toDestination();
+      onload: () =>
+        resolve(
+          gatedVoice(out, (n, d, t) => { s.triggerAttackRelease(n, d, t); }, () => { s.releaseAll(); }),
+        ),
+      onerror: (e) => { s.dispose(); out.dispose(); reject(e); },
+    }).connect(out);
   });
 }
 
@@ -54,16 +86,14 @@ const makers: Record<Timbre, () => Promise<Voice>> = {
       baseUrl: GUITAR,
     }),
   nappe: async () => {
-    const filter = new Tone.Filter(1800, 'lowpass').toDestination();
+    const out = new Tone.Gain(1).toDestination();
+    const filter = new Tone.Filter(1800, 'lowpass').connect(out);
     const synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'fatsawtooth', count: 3, spread: 20 },
       envelope: { attack: 0.3, decay: 0.2, sustain: 0.8, release: 1.2 },
     }).connect(filter);
     synth.volume.value = -14;
-    return {
-      play: (notes, duration, time) => { synth.triggerAttackRelease(notes, duration, time); },
-      releaseAll: () => { synth.releaseAll(); },
-    };
+    return gatedVoice(out, (n, d, t) => { synth.triggerAttackRelease(n, d, t); }, () => { synth.releaseAll(); });
   },
 };
 
