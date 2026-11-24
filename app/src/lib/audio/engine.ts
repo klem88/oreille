@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import { getVoice, isLoaded, loadInstrument, releaseAllVoices, type Timbre } from './instruments';
+import { getVoice, isLoaded, loadInstrument, stopAllVoices, type Timbre } from './instruments';
 
 export type { Timbre };
 export { loadInstrument, isLoaded };
@@ -23,7 +23,7 @@ export function stop(): void {
   const t = Tone.getTransport();
   t.stop();
   t.cancel();
-  releaseAllVoices();
+  stopAllVoices();
   const r = pendingResolve;
   pendingResolve = null;
   r?.();
@@ -53,11 +53,12 @@ export function playSequence(
     chords.forEach((notes, i) => {
       t.schedule((time) => {
         if (gen !== generation) return;
-        voice.play(notes, chordSec, time);
+        voice.play(notes, time);
         if (onChord) Tone.getDraw().schedule(() => { if (gen === generation) onChord(i); }, time);
       }, i * chordSec);
     });
     t.schedule((time) => {
+      if (gen === generation) voice.release(time); // dernier accord
       // fin de séquence : basée sur l'horloge audio, pas sur requestAnimationFrame
       const delay = Math.max(0, (time - Tone.immediate()) * 1000);
       endTimer = setTimeout(() => {
@@ -76,8 +77,8 @@ export function playSequence(
 function playNow(notes: string[], timbre: Timbre, duration: Tone.Unit.Time): void {
   const voice = getVoice(timbre);
   if (!voice) return;
-  voice.releaseAll(); // pas de superposition sur taps rapides
-  voice.play(notes, duration);
+  // play() coupe l'accord précédent de cette voix : pas de superposition
+  voice.play(notes, undefined, Tone.Time(duration).toSeconds());
 }
 
 /** Joue un accord (réécoute à la demande), sans toucher au Transport. */
