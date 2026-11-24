@@ -195,3 +195,41 @@ describe('Leitner / séries / déblocage', () => {
     expect(new Set(kb).size).toBe(8);
   });
 });
+
+describe('ordre des questions et promotion unique', () => {
+  const mainKeys = (seed: number) => {
+    const s = startSeries(fresh(), A, seededRng(seed), 0);
+    return s.questions.filter((_, i) => !s.recall[i]).map((q) => q.itemKey);
+  };
+
+  test('l’ordre varie selon la graine (pas de cycle a,b,c,d,a,b)', () => {
+    const orders = new Set<string>();
+    for (let seed = 0; seed < 30; seed++) orders.add(mainKeys(seed).join(','));
+    expect(orders.size).toBeGreaterThan(10);
+  });
+
+  test('questions 5 et 6 ne répètent pas systématiquement 1 et 2', () => {
+    let systematic = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      const k = mainKeys(seed);
+      if (k[4] === k[0] && k[5] === k[1]) systematic++;
+    }
+    expect(systematic).toBeLessThan(20);
+    for (let seed = 0; seed < 40; seed++) expect(new Set(mainKeys(seed)).size).toBe(4); // les 4 items vus
+  });
+
+  test('un item tiré deux fois dans la série n’est promu qu’une fois', () => {
+    const p = fresh();
+    const s = startSeries(p, A, seededRng(3), 0);
+    const first = s.questions.findIndex((_, i) => !s.recall[i]);
+    // force la même question deux fois de suite
+    const dup: SeriesState = {
+      ...s,
+      questions: [s.questions[first], s.questions[first]],
+      recall: [false, false],
+    };
+    const { p: after } = play(p, dup, () => true);
+    const box = after.boxes.find((b) => b.item === dup.questions[0].itemKey)!;
+    expect(box.box).toBe(1);
+  });
+});

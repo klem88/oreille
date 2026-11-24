@@ -8,9 +8,10 @@
     series,
     palier,
     busy = false,
+    nextWasUnlocked = false,
     onAgain,
     onHome,
-  }: { series: SeriesState; palier: Palier; busy?: boolean; onAgain: () => void; onHome: () => void } = $props();
+  }: { series: SeriesState; palier: Palier; busy?: boolean; nextWasUnlocked?: boolean; onAgain: () => void; onHome: () => void } = $props();
 
   const score = $derived(scoreOf(series));
   const pct = $derived(score.total ? Math.round((score.correct / score.total) * 100) : 0);
@@ -34,7 +35,7 @@
       ou {palier.serie.suiteReussites} réussites d'affilée (actuellement {rec?.streak ?? 0}).
     </p>
   {/if}
-  {#if next && nextUnlocked}
+  {#if next && nextUnlocked && !nextWasUnlocked}
     <p class="ok">Palier {next.id} · {next.titre} débloqué.</p>
   {/if}
 

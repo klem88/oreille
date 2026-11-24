@@ -50,6 +50,14 @@ export const PalierSchema = z
   .refine((p) => !p.modes.includes('minor') || (p.degresMineur?.length ?? 0) > 0, {
     path: ['degresMineur'],
     message: 'degresMineur requis quand modes contient minor',
+  })
+  .refine((p) => !p.sevenths || (p.septiemes?.length ?? 0) > 0, {
+    path: ['septiemes'],
+    message: 'septiemes requis quand sevenths est vrai',
+  })
+  .refine((p) => !p.sevenths || !p.modes.includes('minor') || (p.septiemesMineur?.length ?? 0) > 0, {
+    path: ['septiemesMineur'],
+    message: 'septiemesMineur requis quand sevenths est vrai et modes contient minor',
   });
 
 export type Palier = z.infer<typeof PalierSchema>;

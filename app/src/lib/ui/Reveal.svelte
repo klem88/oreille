@@ -69,6 +69,12 @@
     player.note(note, q.timbre);
   }
 
+  /** Touche du clavier : rejoue la note sans changer ce qui est surligné. */
+  function hearKey(note: string) {
+    tapUnlock();
+    player.note(note, q.timbre);
+  }
+
   /** Nœud de la roue : l'accord de la progression s'il y est, sinon le degré diatonique voicé simplement. */
   function hearStep(s: Step) {
     const i = q.degrees.findIndex((d) => d.step === s && !d.secondaryOf);
@@ -128,7 +134,7 @@
   {/if}
 
   <BassLine basses={q.stimulus.map((v) => v.bass)} degrees={q.degrees} tonic={q.key} currentIndex={current} onTap={hearBass} />
-  <Keyboard notes={shown} bassColor={shownColor} {range} />
+  <Keyboard notes={shown} bassColor={shownColor} {range} onTap={hearKey} />
   {#if playError}<p class="error">{playError}</p>{/if}
   <p class="meta">Tonalité : {q.key} {q.mode === 'major' ? 'majeur' : 'mineur'} · {q.bpm} bpm · {q.timbre}</p>
 

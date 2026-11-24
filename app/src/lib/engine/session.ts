@@ -59,30 +59,38 @@ function getPalier(id: string): Palier {
 export function startSeries(progress: Progress, palier: Palier, rng: Rng, now: number): SeriesState {
   const { questions: nQ, rappels: nR } = palier.serie;
 
-  // items les moins avancés d'abord (jamais vus = boîte -1), égalités mélangées
+  // items les moins avancés d'abord (jamais vus = boîte -1), égalités mélangées ; les items distincts
+  // d'abord, puis les répétitions tirées au hasard dans le niveau le plus faible (jamais en cycle)
   const pickItems = (count: number, exclude: string[] = []): string[] => {
     const all = itemsOf(palier);
-    const pool = all.filter((i) => !exclude.includes(i));
-    const base = pool.length >= count ? pool : all;
-    const ranked = shuffle(base, rng)
-      .map((item) => ({ item, box: findBox(progress.boxes, palier.id, item)?.box ?? -1 }))
-      .sort((a, b) => a.box - b.box);
-    const out: string[] = [];
-    for (let i = 0; i < count; i++) out.push(ranked[i % ranked.length].item);
+    const rank = (items: string[]) =>
+      shuffle(items, rng)
+        .map((item) => ({ item, box: findBox(progress.boxes, palier.id, item)?.box ?? -1 }))
+        .sort((a, b) => a.box - b.box);
+    const out = rank(all.filter((i) => !exclude.includes(i)))
+      .slice(0, count)
+      .map((r) => r.item);
+    if (out.length < count) {
+      const ranked = rank(all);
+      const weakest = ranked.filter((r) => r.box === ranked[0].box);
+      while (out.length < count) out.push(weakest[Math.floor(rng() * weakest.length)].item);
+    }
     return out;
   };
 
-  const main: Question[] = pickItems(nQ).map((itemKey) => generate(palier, rng, { itemKey }));
+  const main: Question[] = shuffle(pickItems(nQ), rng).map((itemKey) => generate(palier, rng, { itemKey }));
+  const mainKeys = main.map((m) => `${m.palier}|${m.itemKey}`);
 
   const loaded = loadPaliers();
-  const due = progress.boxes
+  const dueAll = progress.boxes
     .filter((b) => {
       if (!progress.paliers[b.palier]?.validated || b.due > now) return false;
       const p = loaded.find((x) => x.id === b.palier);
       return !!p && itemsOf(p).includes(b.item);
     })
-    .sort((a, b) => a.box - b.box || a.due - b.due)
-    .slice(0, nR);
+    .sort((a, b) => a.box - b.box || a.due - b.due);
+  const isMain = (b: Box) => mainKeys.includes(`${b.palier}|${b.item}`);
+  const due = [...dueAll.filter((b) => !isMain(b)), ...dueAll.filter(isMain)].slice(0, nR);
   const recalls: Question[] = due.map((b) =>
     generate(loaded.find((x) => x.id === b.palier)!, rng, { itemKey: b.item }),
   );
@@ -160,7 +168,9 @@ export function answer(
   const boxes = [...progress.boxes];
   const at = boxes.findIndex((b) => b.palier === q.palier && b.item === q.itemKey);
   const base: Box = at >= 0 ? boxes[at] : { item: q.itemKey, palier: q.palier, box: 0, due: now };
-  const updated = correct ? promote(base, now) : demote(base, now);
+  // une promotion au plus par item et par série (un item tiré deux fois n'est pas promu deux fois)
+  const already = series.questions.some((x, i) => i < series.index && series.results[i] && x.palier === q.palier && x.itemKey === q.itemKey);
+  const updated = correct ? (already ? base : promote(base, now)) : demote(base, now);
   if (at >= 0) boxes[at] = updated;
   else boxes.push(updated);
 

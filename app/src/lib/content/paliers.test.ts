@@ -80,4 +80,13 @@ describe('paliers', () => {
     expect(bad({ id: 'AB' })).toBe(false);
     expect(bad({ id: 'a' })).toBe(false);
   });
+
+  test('septiemes requis quand sevenths est vrai (et septiemesMineur en mineur)', () => {
+    const ok = (o: object) => PalierSchema.safeParse({ ...A, ...o }).success;
+    expect(ok({ sevenths: true })).toBe(false);
+    expect(ok({ sevenths: true, septiemes: ['V7'] })).toBe(true);
+    const minor = { modes: ['major', 'minor'], degresMineur: ['i', 'iv', 'V'], sevenths: true, septiemes: ['V7'] };
+    expect(ok(minor)).toBe(false);
+    expect(ok({ ...minor, septiemesMineur: ['i7'] })).toBe(true);
+  });
 });

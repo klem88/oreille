@@ -8,7 +8,7 @@
 
 - [ ] Les trois timbres se chargent (état « prêt »), erreur réseau -> « Réessayer ».
 - [ ] « cadence » joue I-IV-V-I dans chaque timbre.
-- [ ] « stop » coupe net, y compris la queue de release (à l'oreille, appareil).
+- [ ] « stop » coupe par un fondu bref (≈ 0,25 s piano/guitare, ≈ 80 ms nappe), sans queue de release audible (à l'oreille, appareil).
 - [ ] Deux taps rapides sur « accord » ne superposent rien.
 - [ ] Relancer « cadence » pendant une cadence remplace l'ancienne, sans accord fantôme.
 - [ ] Aucune erreur console.
@@ -22,5 +22,5 @@ Jamais de `triggerAttackRelease` : il planifie son relâchement immédiatement e
 
 Vérifié par script, qui compte le registre interne (pas le silence audio) (sources actives du Sampler : `_activeSources`, de la nappe : `activeVoices`) : après un accord 4 sources ; 50 ms après `stop()` 0 (piano, guitare), nappe 0 à 250 ms ; deux accords rapides -> un seul accord actif (4) pour piano et guitare ; cadence puis stop -> 0 ; expiration d'un accord de durée 2n -> 0. Nappe : deux accords rapides laissent la queue de relâchement de 1,2 s du premier (legato voulu). Chargement des trois timbres, 0 erreur console.
 
-Reste à vérifier à l'oreille sur appareil : que « stop » coupe net, que deux taps rapides ne se superposent pas audiblement, la qualité sonore, et iOS (commutateur silencieux, écran verrouillé).
+Reste à vérifier à l'oreille sur appareil : que le fondu de « stop » (≈ 0,25 s piano/guitare, ≈ 80 ms nappe) est satisfaisant, que deux taps rapides ne se superposent pas audiblement, la qualité sonore, et iOS (commutateur silencieux, écran verrouillé).
 Le callback `onChord` (Tone.Draw, rAF) est peu fiable quand le panneau navigateur est masqué ; il ne sert qu'à l'animation.

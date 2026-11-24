@@ -1,6 +1,6 @@
 <script lang="ts">
   import { isLoaded, loadInstrument, preloadSamples, type Timbre } from '../audio/engine';
-  import { loadPaliers } from '../content/paliers';
+  import { loadPaliers, PALIER_ORDER } from '../content/paliers';
   import type { Answer } from '../engine/question';
   import { answer, beginSeries, type SeriesState } from '../engine/session';
   import { notesOf } from '../theory/voicing';
@@ -41,6 +41,8 @@
   let correct = $state(false);
   let done = $state(false);
   let error = $state('');
+  /** Information neutre (pas une erreur) : repli à la nappe. */
+  let notice = $state('');
   /** Timbre réellement joué : celui de la question, ou « nappe » en repli (hors ligne / échec de chargement). */
   let tb = $state<Timbre | null>(null);
   /** Jeton de question : un chargement ou une lecture d'une question quittée est ignoré. */
@@ -56,6 +58,10 @@
   );
   const stimulus = $derived(q ? q.stimulus.map(notesOf) : []);
   const replaysLeft = $derived(qPalier ? qPalier.reecoutes - replaysUsed : 0);
+  const target = $derived(
+    !qPalier ? '' : qPalier.type === 'basse' ? 'la note de basse à identifier'
+      : q && q.stimulus.length > 1 ? `les ${q.stimulus.length} accords à identifier` : "l'accord à identifier",
+  );
   const listening = $derived(phase === 'cadence' || phase === 'gap' || phase === 'stimulus');
 
   $effect(() => {
@@ -77,6 +83,11 @@
     };
   });
 
+  /** Le palier suivant était-il déjà débloqué avant cette série ? (le bilan n'annonce que les nouveaux déblocages) */
+  const nextOf = (id: string) => PALIER_ORDER[PALIER_ORDER.indexOf(id) + 1];
+  // svelte-ignore state_referenced_locally
+  let nextWasUnlocked = $state(!!(series && app.progress?.paliers[nextOf(series.palier)]?.unlocked));
+
   function reset() {
     qToken += 1;
     player.cancel();
@@ -86,6 +97,7 @@
     replaysUsed = 0;
     given = null;
     error = '';
+    notice = '';
     tb = null;
   }
 
@@ -119,7 +131,7 @@
         if (token !== qToken) return;
         tb = 'nappe';
         net.fallback = true;
-        if (navigator.onLine !== false) error = `Son ${q.timbre} indisponible (${failure}) : question jouée à la nappe.`;
+        if (navigator.onLine !== false) notice = `Son ${q.timbre} encore en chargement : cette question est jouée à la nappe.`;
       } else {
         net.fallback = false;
       }
@@ -252,6 +264,7 @@
     tapUnlock();
     try {
       const r = beginSeries(app.progress, seriesPalier, Math.random, Date.now());
+      nextWasUnlocked = !!r.progress.paliers[nextOf(seriesPalier.id)]?.unlocked;
       await app.commit(r.progress);
       series = r.series;
       qIndex = 0;
@@ -269,7 +282,7 @@
     <button class="ctl primary" onclick={() => go('#/')}>Accueil</button>
   </main>
 {:else if phase === 'bilan'}
-  <Bilan series={series} palier={seriesPalier} busy={starting} onAgain={again} onHome={() => go('#/')} />
+  <Bilan series={series} palier={seriesPalier} busy={starting} {nextWasUnlocked} onAgain={again} onHome={() => go('#/')} />
 {:else}
   <main class="screen" class:revealed={phase === 'reveal'}>
     <header>
@@ -289,7 +302,7 @@
       <section class="step">
         {#if phase === 'ready'}
           <h2>Prêt ?</h2>
-          <p class="hint">Casque conseillé. Une cadence installe la tonalité (l'ancrage), puis {q.stimulus.length > 1 ? `${q.stimulus.length} accords à identifier` : "l'accord à identifier"}.</p>
+          <p class="hint">Casque conseillé. Une cadence installe la tonalité (l'ancrage), puis {target}.</p>
         {:else if phase === 'loading'}
           <h2>Chargement du son…</h2>
           <p class="hint">{q.timbre}</p>
@@ -326,6 +339,7 @@
         {#if interrupted}
           <button class="ctl primary" onclick={resume}>Reprendre l'écoute</button>
         {/if}
+        {#if notice && phase !== 'loadError'}<p class="notice">{notice}</p>{/if}
         {#if error && phase !== 'loadError'}<p class="error">{error}</p>{/if}
       </section>
 
@@ -369,6 +383,7 @@
   .tag { font-size: 11px; border: 1px solid var(--muted); border-radius: 8px; padding: 0 6px; margin-right: 4px; }
   .step h2 { margin: 0 0 4px; font-size: 22px; text-align: center; }
   .hint { margin: 0; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.35; }
+  .notice { color: var(--muted); text-align: center; font-size: 14px; margin: 0; }
   .error { color: #ff6b6b; text-align: center; font-size: 14px; margin: 0; }
   .viz { flex: 1; min-height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
   .unknown { display: flex; gap: 8px; justify-content: center; }
