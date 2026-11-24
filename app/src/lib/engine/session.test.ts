@@ -2,7 +2,8 @@ import { describe, expect, test } from 'vitest';
 import { loadPaliers } from '../content/paliers';
 import { seededRng } from '../theory/rng';
 import { INTERVALS_MS, demote, promote, type Box } from './leitner';
-import { answer, initialProgress, scoreOf, startSeries, type Progress, type SeriesState } from './session';
+import { answer, beginSeries, initialProgress, scoreOf, startSeries, type Progress, type SeriesState } from './session';
+import { itemsOf } from './generator';
 import type { Answer } from './question';
 
 const [A, B] = loadPaliers();
@@ -154,5 +155,43 @@ describe('Leitner / séries / déblocage', () => {
     const p = fresh();
     const { s } = play(p, startSeries(p, A, seededRng(1), 0), () => true);
     expect(() => answer(p, s, s.questions[0].expected, 0)).toThrow();
+  });
+
+  test('reprise après sérialisation = série ininterrompue', () => {
+    const run = (interrupt: boolean) => {
+      let { progress: p, series: s } = beginSeries(fresh(), A, seededRng(9), 0);
+      for (let i = 0; ; i++) {
+        if (interrupt && i === 3) ({ p, s } = JSON.parse(JSON.stringify({ p, s })));
+        const r = answer(p, s, i % 3 === 0 ? wrong(s.questions[s.index].expected) : s.questions[s.index].expected, 0);
+        p = r.progress;
+        s = r.series;
+        if (r.done) return p;
+      }
+    };
+    const a = run(false);
+    const b = run(true);
+    expect(b.boxes).toEqual(a.boxes);
+    expect(b.paliers.A.consecutiveSeries).toBe(a.paliers.A.consecutiveSeries);
+    expect(b.paliers.A.lastScore).toEqual(a.paliers.A.lastScore);
+  });
+
+  test('une série périmée rejouée contre une progression plus récente est refusée', () => {
+    const { progress: p0, series: s0 } = beginSeries(fresh(), A, seededRng(4), 0);
+    const r = answer(p0, s0, s0.questions[0].expected, 0);
+    expect(() => answer(r.progress, s0, s0.questions[0].expected, 0)).toThrow('Série périmée');
+  });
+
+  test('beginSeries attache la série à la progression', () => {
+    const p = fresh();
+    const { progress, series } = beginSeries(p, A, seededRng(2), 0);
+    expect(progress.series).toBe(series);
+    expect(p.series).toBeUndefined();
+  });
+
+  test('le complément de rappels ne répète pas les items des questions quand il y a assez d’items', () => {
+    const sb = startSeries(fresh(), B, seededRng(1), 0);
+    const kb = sb.questions.map((q) => q.itemKey);
+    expect(itemsOf(B).length).toBeGreaterThanOrEqual(8);
+    expect(new Set(kb).size).toBe(8);
   });
 });

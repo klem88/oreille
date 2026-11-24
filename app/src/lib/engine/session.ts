@@ -60,8 +60,11 @@ export function startSeries(progress: Progress, palier: Palier, rng: Rng, now: n
   const { questions: nQ, rappels: nR } = palier.serie;
 
   // items les moins avancés d'abord (jamais vus = boîte -1), égalités mélangées
-  const pickItems = (count: number): string[] => {
-    const ranked = shuffle(itemsOf(palier), rng)
+  const pickItems = (count: number, exclude: string[] = []): string[] => {
+    const all = itemsOf(palier);
+    const pool = all.filter((i) => !exclude.includes(i));
+    const base = pool.length >= count ? pool : all;
+    const ranked = shuffle(base, rng)
       .map((item) => ({ item, box: findBox(progress.boxes, palier.id, item)?.box ?? -1 }))
       .sort((a, b) => a.box - b.box);
     const out: string[] = [];
@@ -83,7 +86,8 @@ export function startSeries(progress: Progress, palier: Palier, rng: Rng, now: n
   const recalls: Question[] = due.map((b) =>
     generate(loaded.find((x) => x.id === b.palier)!, rng, { itemKey: b.item }),
   );
-  for (const itemKey of recalls.length < nR ? pickItems(nR - recalls.length) : []) {
+  const missing = nR - recalls.length;
+  for (const itemKey of missing > 0 ? pickItems(missing, main.map((m) => m.itemKey)) : []) {
     recalls.push(generate(palier, rng, { itemKey }));
   }
 
@@ -98,6 +102,20 @@ export function startSeries(progress: Progress, palier: Palier, rng: Rng, now: n
     index: 0,
     results: [],
   };
+}
+
+/**
+ * Démarre une série ET l'attache à `progress.series` : c'est cette fonction que l'UI doit
+ * utiliser, pour qu'une série interrompue avant sa première réponse soit persistée.
+ */
+export function beginSeries(
+  progress: Progress,
+  palier: Palier,
+  rng: Rng,
+  now: number,
+): { progress: Progress; series: SeriesState } {
+  const series = startSeries(progress, palier, rng, now);
+  return { progress: { ...progress, series }, series };
 }
 
 export function scoreOf(series: SeriesState): { correct: number; total: number } {
@@ -118,6 +136,16 @@ export function answer(
   now: number,
 ): { correct: boolean; done: boolean; progress: Progress; series: SeriesState } {
   if (series.index >= series.questions.length) throw new Error('Série déjà terminée');
+  const ps = progress.series;
+  if (
+    ps &&
+    (ps.palier !== series.palier ||
+      ps.index !== series.index ||
+      ps.questions.length !== series.questions.length ||
+      ps.questions[0]?.id !== series.questions[0]?.id)
+  ) {
+    throw new Error('Série périmée');
+  }
   const q = series.questions[series.index];
   const isRecall = series.recall[series.index];
   const { correct } = grade(q, a);
@@ -138,13 +166,8 @@ export function answer(
 
   const paliers: Record<string, PalierProgress> = {};
   for (const [id, p] of Object.entries(progress.paliers)) paliers[id] = { ...p };
-  const cur: PalierProgress = paliers[series.palier] ?? {
-    unlocked: true,
-    validated: false,
-    consecutiveSeries: 0,
-    streak: 0,
-  };
-  paliers[series.palier] = cur;
+  const cur = paliers[series.palier];
+  if (!cur) throw new Error(`Palier inconnu dans la progression : ${series.palier}`);
   const params = getPalier(series.palier).serie;
 
   if (!isRecall) {
