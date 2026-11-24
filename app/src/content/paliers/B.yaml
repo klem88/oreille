@@ -1,0 +1,17 @@
+id: B
+titre: Les sept degrés
+explication: "Les sept degrés en majeur et en mineur, d'abord en triades puis en septièmes."
+modes: [major, minor]
+degres: [I, ii, iii, IV, V, vi, vii°]
+degresMineur: [i, ii°, bIII, iv, V, bVI, bVII]
+sevenths: true
+septiemes: [Imaj7, ii7, iii7, IVmaj7, V7, vi7, viiø7]
+septiemesMineur: [i7, iiø7, bIIImaj7, iv7, V7, bVImaj7, bVII7]
+type: degre
+longueur: [1, 1]
+serie: { questions: 6, rappels: 2, seuil: 0.85, seriesConsecutives: 2, suiteReussites: 6 }
+reecoutes: 2
+chant: false
+timbres: [piano, guitare, nappe]
+cadence: [I, IV, V, I]
+cadenceMineur: [i, iv, V, i]

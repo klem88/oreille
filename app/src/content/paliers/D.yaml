@@ -1,0 +1,13 @@
+id: D
+titre: Deux accords
+explication: "Deux accords enchaînés : reconnaissez les deux degrés dans l'ordre."
+modes: [major]
+degres: [I, ii, IV, V, vi]
+sevenths: false
+type: progression
+longueur: [2, 2]
+serie: { questions: 6, rappels: 2, seuil: 0.85, seriesConsecutives: 2, suiteReussites: 6 }
+reecoutes: 2
+chant: true
+timbres: [piano, guitare, nappe]
+cadence: [I, V7, I]

@@ -1,0 +1,13 @@
+id: A
+titre: Ancrage
+explication: "Une cadence installe la tonalité, puis un accord : est-ce le I, le IV, le V ou le vi ?"
+modes: [major]
+degres: [I, IV, V, vi]
+sevenths: false
+type: degre
+longueur: [1, 1]
+serie: { questions: 6, rappels: 2, seuil: 0.85, seriesConsecutives: 2, suiteReussites: 6 }
+reecoutes: 3
+chant: false
+timbres: [piano, guitare, nappe]
+cadence: [I, IV, V, I]

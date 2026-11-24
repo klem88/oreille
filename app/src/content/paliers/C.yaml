@@ -1,0 +1,14 @@
+id: C
+titre: Renversements
+explication: "Quelle note est à la basse : la fondamentale, la tierce, la quinte ou la septième ?"
+modes: [major]
+degres: [I, IV, V, vi, ii]
+sevenths: true
+septiemes: [Imaj7, IVmaj7, V7, vi7, ii7]
+type: basse
+longueur: [1, 1]
+serie: { questions: 6, rappels: 2, seuil: 0.85, seriesConsecutives: 2, suiteReussites: 6 }
+reecoutes: 2
+chant: true
+timbres: [piano, guitare, nappe]
+cadence: [I, IV, V, I]
