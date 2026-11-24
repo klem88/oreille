@@ -159,13 +159,11 @@
     }
   }
 
-  async function replay(kind: 'stimulus' | 'basse' | 'guides') {
+  /** Guide-tones (tierce, septième) de la question, accord par accord (spec 5.4). */
+  async function replayGuides() {
     tapUnlock();
     cadCurrent = -1;
-    const seq =
-      kind === 'stimulus' ? chords
-        : kind === 'basse' ? q.stimulus.map((v) => [v.bass])
-        : q.stimulus.map((v, i) => guideTones(q.key, q.mode, q.degrees[i], v));
+    const seq = q.stimulus.map((v, i) => guideTones(q.key, q.mode, q.degrees[i], v));
     try {
       const ok = await player.sequence(seq, q.bpm, q.timbre, (i) => {
         current = i;
@@ -197,6 +195,10 @@
     {/each}
   </ul>
   <p class="hint">Tape un accord, une brique, un point ou une touche de la roue pour le réentendre.</p>
+  <div class="links">
+    <button onclick={replayInContext}>Ancrage puis question ▸</button>
+    <button onclick={replayGuides}>Guide-tones ▸</button>
+  </div>
 
   <Timeline degrees={cadenceDegrees} names={cadNames} currentIndex={cadCurrent} label="Cadence d'ancrage (le contexte)" onTap={hearCadence} />
   <div class="cadbass" aria-label="Basse de l'ancrage">
@@ -221,11 +223,7 @@
   <p class="meta">Tonalité : {q.key} {q.mode === 'major' ? 'majeur' : 'mineur'} · {q.bpm} bpm · {q.timbre}</p>
 
   <div class="actions">
-    <button class="ctl small" onclick={() => replay('basse')}>Réécouter la basse</button>
-    <button class="ctl small" onclick={() => replay('guides')}>Réécouter les guide-tones</button>
-    <button class="ctl small" onclick={replayInContext}>Réécouter avec l'ancrage</button>
-    <button class="ctl" onclick={() => replay('stimulus')}>Réécouter</button>
-    <button class="ctl primary wide" onclick={onNext}>{nextLabel}</button>
+    <button class="ctl primary" onclick={onNext}>{nextLabel}</button>
   </div>
 </section>
 
@@ -253,11 +251,14 @@
   .error { margin: 0; text-align: center; color: #ff6b6b; font-size: 14px; }
   .hint, .meta { margin: 0; text-align: center; color: var(--muted); font-size: 12px; }
   .actions {
-    position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    position: sticky; bottom: 0; display: grid;
     padding: 8px 0 12px; background: var(--bg); margin-top: auto;
   }
   .ctl { min-height: 48px; background: var(--panel); color: var(--fg); font-size: 16px; }
-  .ctl.small { font-size: 14px; }
   .ctl.primary { background: var(--fg); color: var(--bg); font-weight: 600; }
-  .ctl.wide { grid-column: 1 / -1; }
+  .links { display: flex; gap: 6px; margin-top: -4px; }
+  .links button {
+    flex: 1; min-height: 48px; background: transparent; color: var(--muted);
+    border: 1px solid #2c2c34; font-size: 13px;
+  }
 </style>

@@ -219,6 +219,17 @@
     stimIdx = -1;
   }
 
+  /** Réécoute en contexte : l'ancrage, le même silence, puis la question ; compte pour une réécoute. */
+  async function replayWithCadence() {
+    if (!q || replaysLeft <= 0 || player.active) return;
+    tapUnlock();
+    replaysUsed += 1;
+    const ok = await guarded(() => player.sequence(q.cadence, q.bpm, tb ?? q.timbre, undefined, 2));
+    if (!ok || !(await player.wait(GAP_MS))) return;
+    await guarded(() => player.sequence(stimulus, q.bpm, tb ?? q.timbre, (i) => (stimIdx = i), 4));
+    stimIdx = -1;
+  }
+
   async function replayBass() {
     if (!q || player.active) return;
     tapUnlock();
@@ -364,7 +375,11 @@
         {:else if listening || player.active}
           <button class="ctl" onclick={skip}>Passer</button>
         {:else}
-          <button class="ctl" disabled={replaysLeft <= 0} onclick={replay}>Réécouter ({replaysLeft})</button>
+          <div class="replays">
+            <button class="ctl" disabled={replaysLeft <= 0} onclick={replay}>{q.stimulus.length > 1 ? 'Les accords' : "L'accord"}</button>
+            <button class="ctl" disabled={replaysLeft <= 0} onclick={replayWithCadence}>Avec l'ancrage</button>
+          </div>
+          <p class="left">{replaysLeft > 0 ? `Réécouter : ${replaysLeft} restante${replaysLeft > 1 ? 's' : ''}` : 'Plus de réécoute'}</p>
         {/if}
       </section>
     {/if}
@@ -395,6 +410,8 @@
   .unknown .block.current { transform: translateY(-4px); border-color: #fff; color: var(--fg); }
   .chant { display: grid; gap: 10px; }
   .controls { position: sticky; bottom: 0; display: grid; padding: 8px 0 12px; background: var(--bg); }
+  .replays { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .left { margin: 4px 0 0; text-align: center; color: var(--muted); font-size: 12px; }
   .ctl { min-height: 52px; background: var(--panel); color: var(--fg); font-size: 17px; }
   .ctl.primary { background: var(--fg); color: var(--bg); font-weight: 600; }
 </style>
