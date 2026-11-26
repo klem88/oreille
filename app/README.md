@@ -16,7 +16,11 @@ npm run preview    # sert dist/ pour tester la PWA (config « app-preview », po
 
 Les icônes PWA sont générées par `node scripts/make-icons.mjs` (sans dépendance) vers `public/icons/`.
 
-## Déploiement (non lancé : à faire sur décision de l'utilisateur)
+## Déploiement
+
+En ligne : https://klem88.github.io/oreille/ (GitHub Pages). Chaque push sur `main` relance les tests, construit et publie l'app (`.github/workflows/pages.yml`).
+
+## Autres options de déploiement
 
 L'app utilise des chemins relatifs (`base: './'`) : elle fonctionne à la racine d'un domaine comme sous un sous-chemin.
 
